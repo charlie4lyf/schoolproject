@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Grading: {{ assignment.title }}</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Submitted ({{ submissions.count }})</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sub in submissions %}
+                                <tr {% if sub.is_late %}class="table-warning"{% endif %}>
+                                    <td>{{ sub.student.user.get_full_name }}</td>
+                                    <td>
+                                        {{ sub.submitted_at|date:"M d H:i" }}
+                                        {% if sub.is_late %}<span class="badge bg-danger">Late</span>{% endif %}
+                                    </td>
+                                    <td>{{ sub.get_status_display }}</td>
+                                    <td>{{ sub.score|default:"-" }}</td>
+                                    <td>
+                                        <a href="{{ sub.submission_file.url }}" target="_blank" class="btn btn-sm btn-info" title="Download"><i class="fas fa-download"></i></a>
+                                        <a href="{% url 'grade_submission' sub.pk %}" class="btn btn-sm btn-success" title="Grade"><i class="fas fa-check"></i></a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5">No submissions yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">Pending ({{ pending_students.count }})</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for student in pending_students %}
+                            <li class="list-group-item">{{ student.user.get_full_name }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

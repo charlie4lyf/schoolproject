@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance - {{ selected_date }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-calendar-check"></i> Attendance Report</h1>
+        <p>{{ selected_date|date:"l, F d, Y" }}</p>
+    </div>
+    <a href="{% url 'attendance_history' %}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left"></i> Back to History
+    </a>
+</div>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label for="class" class="form-label">
+                    <i class="bi bi-funnel"></i> Filter by Class
+                </label>
+                <select name="class" id="class" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                    <option value="{{ cls.id }}" {% if cls.id|stringformat:"s" == selected_class %}selected{% endif %}>
+                        {{ cls.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" name="date" value="{{ selected_date }}">
+        </form>
+    </div>
+</div>
+
+<!-- Attendance Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #10b981;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem; font-weight: 600;">Present</p>
+                    <h2 class="mb-0" style="font-size: 2.5rem; font-weight: 700; color: #10b981;">{{ summary.present }}</h2>
+                </div>
+                <div class="stat-icon" style="background-color: #dcfce7; color: #10b981;">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">Students marked present</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #ef4444;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem; font-weight: 600;">Absent</p>
+                    <h2 class="mb-0" style="font-size: 2.5rem; font-weight: 700; color: #ef4444;">{{ summary.absent }}</h2>
+                </div>
+                <div class="stat-icon" style="background-color: #fef2f2; color: #ef4444;">
+                    <i class="bi bi-x-circle-fill"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">Students marked absent</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem; font-weight: 600;">Late</p>
+                    <h2 class="mb-0" style="font-size: 2.5rem; font-weight: 700; color: #f59e0b;">{{ summary.late }}</h2>
+                </div>
+                <div class="stat-icon" style="background-color: #fef3c7; color: #f59e0b;">
+                    <i class="bi bi-clock-fill"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">Students arrived late</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #3b82f6;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem; font-weight: 600;">Excused</p>
+                    <h2 class="mb-0" style="font-size: 2.5rem; font-weight: 700; color: #3b82f6;">{{ summary.excused }}</h2>
+                </div>
+                <div class="stat-icon" style="background-color: #dbeafe; color: #3b82f6;">
+                    <i class="bi bi-info-circle-fill"></i>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">Students with excused absence</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overall Statistics -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-people-fill" style="font-size: 2rem; color: white;"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.875rem;">Total Students</p>
+                        <h3 class="mb-0" style="font-weight: 700;">{{ summary.total }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span style="font-weight: 600; color: #0f172a;">Attendance Rate</span>
+                            <span style="font-weight: 700; font-size: 1.25rem; color: #10b981;">{{ summary.percentage }}%</span>
+                        </div>
+                        <div class="progress" style="height: 12px; border-radius: 0.5rem;">
+                            {% if summary.percentage >= 90 %}
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ summary.percentage }}%;" aria-valuenow="{{ summary.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            {% elif summary.percentage >= 75 %}
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ summary.percentage }}%;" aria-valuenow="{{ summary.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            {% else %}
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ summary.percentage }}%;" aria-valuenow="{{ summary.percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">0%</small>
+                            <small class="text-muted">100%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Details Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Student Attendance Details</h5>
+    </div>
+    <div class="card-body">
+        {% if attendance_records %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance_records %}
+                    <tr>
+                        <td>
+                            <strong style="color: #64748b;">{{ record.student.student_id_number }}</strong>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                    {{ record.student.user.get_full_name|slice:":2"|upper }}
+                                </div>
+                                <span style="font-weight: 600;">{{ record.student.user.get_full_name }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                {{ record.class_assigned.name }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if record.status == 'present' %}
+                            <span class="badge bg-success" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                <i class="bi bi-check-circle"></i> Present
+                            </span>
+                            {% elif record.status == 'absent' %}
+                            <span class="badge bg-danger" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                <i class="bi bi-x-circle"></i> Absent
+                            </span>
+                            {% elif record.status == 'late' %}
+                            <span class="badge bg-warning" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                <i class="bi bi-clock"></i> Late
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                <i class="bi bi-info-circle"></i> Excused
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-muted">{{ record.remarks|default:"-" }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h3>No Attendance Records</h3>
+            <p>No attendance records found for the selected date and class.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    /* Additional styling for attendance page */
+    .stat-card {
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .progress-bar {
+        transition: width 1s ease-in-out;
+    }
+</style>
+{% endblock %}

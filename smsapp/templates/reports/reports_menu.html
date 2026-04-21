@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<h1>Reports & Analytics</h1>
+
+<div class="row mt-4">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Report Cards</h5>
+            </div>
+            <div class="card-body">
+                <p>Generate student report cards for a term</p>
+                <ul>
+                    <li>Individual report cards</li>
+                    <li>Bulk generation (entire class)</li>
+                    <li>PDF download</li>
+                </ul>
+                <a href="{% url 'generate_report_cards' %}" class="btn btn-primary">Generate Report Cards</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Attendance Reports</h5>
+            </div>
+            <div class="card-body">
+                <p>View and export attendance data</p>
+                <ul>
+                    <li>Class attendance summary</li>
+                    <li>Individual student reports</li>
+                    <li>Export to Excel</li>
+                </ul>
+                <a href="{% url 'attendance_history' %}" class="btn btn-success">View Attendance</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Grade Reports</h5>
+            </div>
+            <div class="card-body">
+                <p>Analyze academic performance</p>
+                <ul>
+                    <li>Class performance by subject</li>
+                    <li>Student transcripts</li>
+                    <li>Grade distribution</li>
+                </ul>
+                <a href="{% url 'grade_reports' %}" class="btn btn-info">View Grade Reports</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0">Student Lists</h5>
+            </div>
+            <div class="card-body">
+                <p>Export student information</p>
+                <ul>
+                    <li>Class lists with contacts</li>
+                    <li>Student directory</li>
+                    <li>Export to Excel/PDF</li>
+                </ul>
+                <a href="{% url 'export_student_list' %}" class="btn btn-warning">Export Student List</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Performance Analytics</h5>
+            </div>
+            <div class="card-body">
+                <p>Statistical analysis and trends</p>
+                <ul>
+                    <li>Class averages</li>
+                    <li>Subject performance</li>
+                    <li>Trend analysis</li>
+                </ul>
+                <a href="{% url 'performance_analytics' %}" class="btn btn-secondary">View Analytics</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Custom Reports</h5>
+            </div>
+            <div class="card-body">
+                <p>Create custom reports</p>
+                <ul>
+                    <li>Filter by criteria</li>
+                    <li>Combine multiple data</li>
+                    <li>Export in various formats</li>
+                </ul>
+                <a href="{% url 'custom_reports' %}" class="btn btn-danger">Custom Reports</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

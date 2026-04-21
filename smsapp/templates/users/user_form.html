@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+
+            {# Breadcrumb #}
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}">User Management</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">
+                        <i class="fas fa-{% if editing_user %}user-edit{% else %}user-plus{% endif %} me-2"></i>
+                        {{ title }}
+                    </h5>
+                    {% if editing_user %}
+                        <span class="badge bg-light text-dark">
+                            ID: {{ editing_user.pk }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="card-body">
+
+                    {# Non-field errors #}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {# ── Basic Info ─────────────────────────────── #}
+                        <h6 class="text-muted text-uppercase fw-semibold mb-3" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                            Basic Information
+                        </h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    First Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       name="{{ form.first_name.html_name }}"
+                                       id="{{ form.first_name.id_for_label }}"
+                                       class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                       value="{{ form.first_name.value|default:'' }}"
+                                       placeholder="e.g. John">
+                                {% for error in form.first_name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    Last Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       name="{{ form.last_name.html_name }}"
+                                       id="{{ form.last_name.id_for_label }}"
+                                       class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                       value="{{ form.last_name.value|default:'' }}"
+                                       placeholder="e.g. Smith">
+                                {% for error in form.last_name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                Email Address <span class="text-danger">*</span>
+                            </label>
+                            <input type="email"
+                                   name="{{ form.email.html_name }}"
+                                   id="{{ form.email.id_for_label }}"
+                                   class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                                   value="{{ form.email.value|default:'' }}"
+                                   placeholder="e.g. admin@school.ac.zw">
+                            {% for error in form.email.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        {% if form.phone %}
+                        <div class="mb-4">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
+                            <input type="text"
+                                   name="{{ form.phone.html_name }}"
+                                   id="{{ form.phone.id_for_label }}"
+                                   class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
+                                   value="{{ form.phone.value|default:'' }}"
+                                   placeholder="e.g. +263 77 123 4567">
+                            {% for error in form.phone.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <hr class="my-4">
+
+                        {# ── Security Settings ──────────────────────── #}
+                        <h6 class="text-muted text-uppercase fw-semibold mb-3" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+                            Security Settings
+                        </h6>
+
+                        <div class="mb-4">
+                            <i class="fas fa-lock me-1"></i>
+                            <strong>Password Reset</strong>
+                            <div class="mt-2">
+                                <label for="{{ form.password.id_for_label }}" class="form-label mb-1">
+                                    New Password
+                                </label>
+                                <input type="password"
+                                       name="{{ form.password.html_name }}"
+                                       id="{{ form.password.id_for_label }}"
+                                       class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                       autocomplete="new-password"
+                                       placeholder="Leave blank to keep existing password">
+                                {% for error in form.password.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Only fill this in if you want to reset the user's password.
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if form.is_active %}
+                        <div class="mb-4 form-check form-switch">
+                            <input type="checkbox"
+                                   name="{{ form.is_active.html_name }}"
+                                   id="{{ form.is_active.id_for_label }}"
+                                   class="form-check-input {% if form.is_active.errors %}is-invalid{% endif %}"
+                                   role="switch"
+                                   {% if form.is_active.value %}checked{% endif %}>
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Account Active
+                            </label>
+                            <div class="form-text text-muted">
+                                Inactive accounts cannot log in to the system.
+                            </div>
+                            {% for error in form.is_active.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-3">
+                            <a href="{% url 'user_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                {% if editing_user %}Save Changes{% else %}Create User{% endif %}
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

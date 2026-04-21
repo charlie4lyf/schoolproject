@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+
+{% block title %}Mark Attendance - {{ class.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1><i class="bi bi-clipboard-check"></i> Mark Attendance</h1>
+        <p><span class="badge bg-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">{{ class.name }}</span></p>
+    </div>
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Date Selection & Class Info -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-calendar3"></i> Attendance Details</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end mb-4 pb-4" style="border-bottom: 2px solid #e2e8f0;">
+            <div class="col-md-6">
+                <label for="date" class="form-label">Select Date</label>
+                <input type="date" name="date" id="date" class="form-control" value="{{ selected_date }}" max="{{ today }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-calendar-event"></i> Change Date
+                </button>
+            </div>
+        </form>
+        
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 48px; height: 48px; background-color: #dbeafe; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-book" style="font-size: 1.5rem; color: #2563eb;"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.875rem;">Class</p>
+                        <strong style="font-size: 1.125rem;">{{ class.name }}</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 48px; height: 48px; background-color: #dcfce7; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-calendar-check" style="font-size: 1.5rem; color: #16a34a;"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.875rem;">Date</p>
+                        <strong style="font-size: 1.125rem;">{{ selected_date|date:"M d, Y" }}</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 48px; height: 48px; background-color: #f3e8ff; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-people" style="font-size: 1.5rem; color: #9333ea;"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.875rem;">Total Students</p>
+                        <strong style="font-size: 1.125rem;">{{ students.count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert if Already Marked -->
+{% if already_marked and not can_edit %}
+<div class="alert alert-info" style="border-left: 4px solid #3b82f6;">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle-fill" style="font-size: 1.25rem;"></i>
+        <div>
+            <strong>Attendance Already Marked</strong>
+            <p class="mb-0">Attendance for this date has already been marked. Only today's attendance can be edited.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Attendance Form -->
+<form method="post" id="attendanceForm">
+    {% csrf_token %}
+    
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-check"></i> Student Attendance</h5>
+            {% if can_edit %}
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-success" onclick="markAll('present')">
+                    <i class="bi bi-check-all"></i> All Present
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="markAll('absent')">
+                    <i class="bi bi-x-circle"></i> All Absent
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if students %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th style="width: 120px;">Student ID</th>
+                            <th>Name</th>
+                            <th style="width: 400px;">Status</th>
+                            {% if can_edit %}
+                            <th style="width: 250px;">Remarks</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>
+                                <span class="badge" style="background-color: #f1f5f9; color: #475569; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                    {{ forloop.counter }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong style="color: #64748b;">{{ student.student_id_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                        {{ student.user.get_full_name|slice:":2"|upper }}
+                                    </div>
+                                    <span style="font-weight: 600;">{{ student.user.get_full_name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if can_edit %}
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="status_{{ student.id }}" id="present_{{ student.id }}" value="present" 
+                                           {% if student.attendance_status == 'present' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success" for="present_{{ student.id }}" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                        <i class="bi bi-check-circle"></i> Present
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="status_{{ student.id }}" id="absent_{{ student.id }}" value="absent"
+                                           {% if student.attendance_status == 'absent' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger" for="absent_{{ student.id }}" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                        <i class="bi bi-x-circle"></i> Absent
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="status_{{ student.id }}" id="late_{{ student.id }}" value="late"
+                                           {% if student.attendance_status == 'late' %}checked{% endif %}>
+                                    <label class="btn btn-outline-warning" for="late_{{ student.id }}" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                        <i class="bi bi-clock"></i> Late
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="status_{{ student.id }}" id="excused_{{ student.id }}" value="excused"
+                                           {% if student.attendance_status == 'excused' %}checked{% endif %}>
+                                    <label class="btn btn-outline-info" for="excused_{{ student.id }}" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                        <i class="bi bi-info-circle"></i> Excused
+                                    </label>
+                                </div>
+                                {% else %}
+                                {% if student.attendance_status == 'present' %}
+                                <span class="badge bg-success" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                    <i class="bi bi-check-circle"></i> Present
+                                </span>
+                                {% elif student.attendance_status == 'absent' %}
+                                <span class="badge bg-danger" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                    <i class="bi bi-x-circle"></i> Absent
+                                </span>
+                                {% elif student.attendance_status == 'late' %}
+                                <span class="badge bg-warning" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                    <i class="bi bi-clock"></i> Late
+                                </span>
+                                {% elif student.attendance_status == 'excused' %}
+                                <span class="badge bg-info" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                    <i class="bi bi-info-circle"></i> Excused
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                    <i class="bi bi-question-circle"></i> Not Marked
+                                </span>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                            {% if can_edit %}
+                            <td>
+                                <input type="text" name="remarks_{{ student.id }}" class="form-control" 
+                                       value="{{ student.attendance_remarks|default:'' }}" placeholder="Optional remarks...">
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if can_edit %}
+            <div class="mt-4 pt-4" style="border-top: 2px solid #e2e8f0;">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save"></i> Save Attendance
+                    </button>
+                    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-people"></i>
+                <h3>No Students Found</h3>
+                <p>No students in this class.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<style>
+    /* Custom styling for attendance marking */
+    .btn-check:checked + .btn-outline-success {
+        background-color: #10b981;
+        color: white;
+        border-color: #10b981;
+    }
+    
+    .btn-check:checked + .btn-outline-danger {
+        background-color: #ef4444;
+        color: white;
+        border-color: #ef4444;
+    }
+    
+    .btn-check:checked + .btn-outline-warning {
+        background-color: #f59e0b;
+        color: white;
+        border-color: #f59e0b;
+    }
+    
+    .btn-check:checked + .btn-outline-info {
+        background-color: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    
+    .btn-group label {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-group label:hover {
+        transform: translateY(-1px);
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+</style>
+
+<script>
+function markAll(status) {
+    const radios = document.querySelectorAll('input[type="radio"][value="' + status + '"]');
+    radios.forEach(radio => {
+        radio.checked = true;
+    });
+}
+
+// Add confirmation before leaving if attendance is being marked
+{% if can_edit %}
+let formSubmitted = false;
+document.getElementById('attendanceForm').addEventListener('submit', function() {
+    formSubmitted = true;
+});
+
+window.addEventListener('beforeunload', function(e) {
+    if (!formSubmitted && document.querySelector('input[type="radio"]:checked')) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

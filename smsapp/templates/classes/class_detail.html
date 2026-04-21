@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ class.name }} - Details{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1><i class="bi bi-book"></i> {{ class.name }}</h1>
+        <p>Class Details and Student Roster</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'class_attendance_report' class.id %}" class="btn btn-info">
+            <i class="bi bi-clipboard-data"></i> Attendance Report
+        </a>
+        <a href="{% url 'class_update' class.id %}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Edit Class
+        </a>
+        <a href="{% url 'class_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column - Class Info -->
+    <div class="col-lg-4">
+        <!-- Class Information Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Class Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Class Name</label>
+                    <p class="mb-0" style="font-size: 1.125rem; font-weight: 600; color: #0f172a;">{{ class.name }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Grade Level</label>
+                    <p class="mb-0" style="font-size: 1.125rem; color: #475569;">
+                        <span class="badge bg-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">Form {{ class.grade_level }}</span>
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Academic Year</label>
+                    <p class="mb-0" style="font-size: 1.125rem; color: #475569;">{{ class.academic_year.name }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Room Number</label>
+                    <p class="mb-0" style="font-size: 1.125rem; color: #475569;">
+                        {% if class.room_number %}
+                            <i class="bi bi-door-closed"></i> {{ class.room_number }}
+                        {% else %}
+                            <span class="text-muted">Not assigned</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Capacity</label>
+                    <p class="mb-0" style="font-size: 1.125rem; color: #475569;">{{ class.capacity }} students</p>
+                </div>
+                
+                <!-- <div>
+                    <label class="text-muted mb-2" style="font-size: 0.875rem; font-weight: 600;">Current Enrollment</label>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <strong style="font-size: 1.5rem; color: #0f172a;">{{ class.student_count }}</strong>
+                        <span style="color: #64748b;">/ {{ class.capacity }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px; border-radius: 0.5rem;">
+                        {% widthratio class.student_count 1 class.capacity as percentage %}
+                        {% if percentage >= 90 %}
+                        <div class="progress-bar bg-danger" role="progressbar" style="width: {% widthratio class.student_count 100 class.capacity %}%"></div>
+                        {% elif percentage >= 75 %}
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {% widthratio class.student_count 100 class.capacity %}%"></div>
+                        {% else %}
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio class.student_count 100 class.capacity %}%"></div>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{% widthratio class.student_count 100 class.capacity %}% capacity</small>
+                </div> -->
+            </div>
+        </div>
+        
+        <!-- Class Teacher Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-workspace"></i> Class Teacher</h5>
+            </div>
+            <div class="card-body">
+                {% if class.class_teacher %}
+                <div class="text-center mb-3">
+                    <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 2rem; margin-bottom: 1rem;">
+                        {{ class.class_teacher.user.get_full_name|slice:":2"|upper }}
+                    </div>
+                    <h5 class="mb-1">{{ class.class_teacher.user.get_full_name }}</h5>
+                    <p class="text-muted mb-0" style="font-size: 0.875rem;">Class Teacher</p>
+                </div>
+                
+                <div class="d-flex flex-column gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 40px; height: 40px; background-color: #dbeafe; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-envelope" style="color: #2563eb;"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">Email</small>
+                            <a href="mailto:{{ class.class_teacher.user.email }}" style="color: #0f172a; text-decoration: none; font-weight: 500;">
+                                {{ class.class_teacher.user.email }}
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 40px; height: 40px; background-color: #dcfce7; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-telephone" style="color: #16a34a;"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">Phone</small>
+                            <span style="color: #0f172a; font-weight: 500;">
+                                {{ class.class_teacher.user.phone|default:"Not provided" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-person-x" style="font-size: 3rem; color: #cbd5e1;"></i>
+                    <p class="text-muted mt-2 mb-0">No class teacher assigned</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Student Roster -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Class Roster</h5>
+                <span class="badge bg-primary" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    {{ students.count }} Students
+                </span>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th style="width: 120px;">Student ID</th>
+                                <th>Name</th>
+                                <th style="width: 120px;">Gender</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>
+                                    <span class="badge" style="background-color: #f1f5f9; color: #475569; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong style="color: #64748b;">{{ student.student_id_number }}</strong>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                            {{ student.user.get_full_name|slice:":2"|upper }}
+                                        </div>
+                                        <span style="font-weight: 600;">{{ student.user.get_full_name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if student.gender == 'M' %}
+                                    <span class="badge" style="background-color: #dbeafe; color: #1e40af; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        <i class="bi bi-gender-male"></i> {{ student.get_gender_display }}
+                                    </span>
+                                    {% elif student.gender == 'F' %}
+                                    <span class="badge" style="background-color: #fce7f3; color: #be185d; font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        <i class="bi bi-gender-female"></i> {{ student.get_gender_display }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                        {{ student.get_gender_display }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'student_detail' student.id %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-people"></i>
+                    <h3>No Students Enrolled</h3>
+                    <p>No students in this class yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Additional styling for class details page */
+    .card-body label {
+        margin-bottom: 0.25rem;
+    }
+    
+    .progress {
+        background-color: #f1f5f9;
+    }
+    
+    .progress-bar {
+        transition: width 1s ease-in-out;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+</style>
+{% endblock %}

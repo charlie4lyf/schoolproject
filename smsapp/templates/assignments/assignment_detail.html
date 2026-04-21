@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h5 class="m-0 font-weight-bold text-primary">{{ assignment.title }}</h5>
+            <span class="badge bg-secondary">{{ assignment.subject.name }}</span>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <p class="lead">{{ assignment.description|linebreaks }}</p>
+                    
+                    {% if assignment.attachment %}
+                        <div class="alert alert-light border">
+                            <i class="fas fa-paperclip"></i> Attachment: 
+                            <a href="{{ assignment.attachment.url }}" target="_blank">Download Material</a>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 border-left">
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><strong>Due:</strong> {{ assignment.due_date|date:"M d, Y H:i" }}</li>
+                        <li class="mb-2"><strong>Max Score:</strong> {{ assignment.max_score }}</li>
+                        <li class="mb-2"><strong>Teacher:</strong> {{ assignment.teacher.user.get_full_name }}</li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr>
+
+            {% if user.role == 'student' %}
+                {% if submission %}
+                    <div class="alert {% if submission.status == 'graded' %}alert-success{% else %}alert-info{% endif %}">
+                        <h5>Your Submission</h5>
+                        <p><strong>Submitted on:</strong> {{ submission.submitted_at }}</p>
+                        <p><strong>File:</strong> <a href="{{ submission.submission_file.url }}">View File</a></p>
+                        
+                        {% if submission.status == 'graded' %}
+                            <hr>
+                            <h4>Score: {{ submission.score }} / {{ assignment.max_score }}</h4>
+                            <p><strong>Teacher Feedback:</strong> {{ submission.teacher_feedback }}</p>
+                        {% else %}
+                            <p><em>Status: Pending Grading</em></p>
+                        {% endif %}
+                        
+                        {% if submission.status != 'graded' %}
+                            <a href="{% url 'submit_assignment' assignment.pk %}" class="btn btn-secondary mt-2">Resubmit</a>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    {% if assignment.is_overdue and not assignment.allow_late_submission %}
+                        <div class="alert alert-danger">
+                            The deadline has passed. Late submissions are not allowed.
+                        </div>
+                    {% else %}
+                        <a href="{% url 'submit_assignment' assignment.pk %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-upload"></i> Submit Assignment
+                        </a>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

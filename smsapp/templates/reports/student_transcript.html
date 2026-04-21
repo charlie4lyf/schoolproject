@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container bg-white p-5 shadow my-4" id="printArea">
+    <div class="text-center mb-5 border-bottom pb-3">
+        <h1>OFFICIAL ACADEMIC TRANSCRIPT</h1>
+        <p class="lead">Generated on {{ generated_date|date:"F d, Y" }}</p>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-md-6">
+            <h5>Student Information</h5>
+            <table class="table table-borderless table-sm">
+                <tr><td width="150"><strong>Name:</strong></td><td>{{ student.user.get_full_name }}</td></tr>
+                <tr><td><strong>Student ID:</strong></td><td>{{ student.student_id_number }}</td></tr>
+                <tr><td><strong>Date of Birth:</strong></td><td>{{ student.date_of_birth }}</td></tr>
+            </table>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="alert alert-secondary d-inline-block">
+                <h4 class="mb-0">Cumulative Average: {{ overall_average }}%</h4>
+            </div>
+        </div>
+    </div>
+
+    {% for year, terms in history.items %}
+        <div class="mb-4">
+            <h3 class="bg-light p-2 border-start border-5 border-primary">{{ year.name }}</h3>
+            
+            {% for term, data in terms.items %}
+                <div class="card mb-3 border-0">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ term.name }}</strong>
+                            <span>Term Average: <strong>{{ data.average }}%</strong></span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Score</th>
+                                    <th>Grade</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in data.grades %}
+                                <tr>
+                                    <td>{{ grade.subject.name }}</td>
+                                    <td>{{ grade.average_score }}</td>
+                                    <td>{{ grade.grade_letter }}</td>
+                                    <td>{{ grade.teacher_comment|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% empty %}
+        <div class="alert alert-warning">No academic records found for this student.</div>
+    {% endfor %}
+
+    <div class="mt-5 pt-5 border-top d-none d-print-block">
+        <div class="row">
+            <div class="col-6 text-center">
+                <p>_________________________</p>
+                <p>Principal's Signature</p>
+            </div>
+            <div class="col-6 text-center">
+                <p>_________________________</p>
+                <p>School Seal</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center d-print-none mt-4">
+        <button onclick="window.print()" class="btn btn-primary btn-lg"><i class="fas fa-print"></i> Print Transcript</button>
+        <a href="javascript:history.back()" class="btn btn-secondary btn-lg">Back</a>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body * { visibility: hidden; }
+        #printArea, #printArea * { visibility: visible; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none !important; }
+        .d-print-none { display: none !important; }
+        .sidebar, nav { display: none; }
+    }
+</style>
+{% endblock %}

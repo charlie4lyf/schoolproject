@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    {% if user.profile_picture %}
+                        <img src="{{ user.profile_picture.url }}" class="rounded-circle img-thumbnail mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    {% else %}
+                        <img src="https://ui-avatars.com/api/?name={{ user.get_full_name }}&background=random" class="rounded-circle img-thumbnail mb-3" style="width: 150px; height: 150px;">
+                    {% endif %}
+                    
+                    <h4>{{ user.get_full_name }}</h4>
+                    <p class="text-muted mb-1">{{ user.get_role_display }}</p>
+                    <p class="text-muted font-size-sm">{{ user.email }}</p>
+                    
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="{% url 'edit_profile' %}" class="btn btn-primary">Edit Profile</a>
+                        <a href="{% url 'change_password' %}" class="btn btn-outline-danger">Change Password</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><h6 class="mb-0">Full Name</h6></div>
+                        <div class="col-sm-9 text-secondary">{{ user.get_full_name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><h6 class="mb-0">Email</h6></div>
+                        <div class="col-sm-9 text-secondary">{{ user.email }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><h6 class="mb-0">Phone</h6></div>
+                        <div class="col-sm-9 text-secondary">{{ user.phone|default:"Not provided" }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><h6 class="mb-0">Date Joined</h6></div>
+                        <div class="col-sm-9 text-secondary">{{ user.date_joined|date:"F d, Y" }}</div>
+                    </div>
+
+                    <hr>
+
+                    {% if user.role == 'student' %}
+                        <h6 class="text-primary mb-3">Student Details</h6>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Student ID</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ student.student_id_number }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Class</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ student.current_class.name }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Attendance</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ attendance_percentage }}%</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Term Avg</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ current_average }}%</div>
+                        </div>
+                    
+                    {% elif user.role == 'teacher' %}
+                        <h6 class="text-primary mb-3">Teacher Details</h6>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Employee ID</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ teacher.employee_id }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Qualification</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ teacher.qualification }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Classes Assigned</h6></div>
+                            <div class="col-sm-9 text-secondary">
+                                {% for assignment in teaching_assignments %}
+                                    <span class="badge bg-info text-dark">{{ assignment.class_assigned.name }} ({{ assignment.subject.name }})</span>
+                                {% empty %}
+                                    None
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                    {% elif user.role == 'parent' %}
+                        <h6 class="text-primary mb-3">Guardian Details</h6>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Occupation</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ parent.occupation }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Address</h6></div>
+                            <div class="col-sm-9 text-secondary">{{ parent.address }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-3"><h6 class="mb-0">Children</h6></div>
+                            <div class="col-sm-9 text-secondary">
+                                {% for child in children %}
+                                    <a href="{% url 'student_detail' child.student.id %}" class="text-decoration-none">
+                                        {{ child.student.user.get_full_name }}
+                                    </a><br>
+                                {% empty %}
+                                    No children linked.
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

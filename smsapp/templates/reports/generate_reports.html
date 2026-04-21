@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Report Cards{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Generate Report Cards</h1>
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Select Options</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" action="{% url 'preview_report_card' %}">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="term" class="form-label">Term *</label>
+                    <select name="term" id="term" class="form-select" required>
+                        <option value="">Select Term</option>
+                        {% for term in terms %}
+                        <option value="{{ term.id }}">{{ term.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="class" class="form-label">Class *</label>
+                    <select name="class" id="class" class="form-select" required>
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="student" class="form-label">Student (Optional - leave blank for all students)</label>
+                <select name="student" id="student" class="form-select">
+                    <option value="">All Students in Class</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}">{{ student.user.get_full_name }} ({{ student.student_id_number }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>Note:</strong> Make sure term averages have been calculated for all subjects before generating report cards.
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Preview Report Card</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Bulk Generation Options</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% url 'bulk_generate_reports' %}">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="bulk_term" class="form-label">Term *</label>
+                    <select name="term" id="bulk_term" class="form-select" required>
+                        <option value="">Select Term</option>
+                        {% for term in terms %}
+                        <option value="{{ term.id }}">{{ term.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="bulk_class" class="form-label">Class *</label>
+                    <select name="class" id="bulk_class" class="form-select" required>
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>Bulk Generation:</strong> This will generate PDF report cards for all students in the selected class. The files will be saved and you can download them as a ZIP file.
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success">Generate All Report Cards (PDF)</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

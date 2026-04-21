@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+
+    {# Breadcrumb #}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'teacher_list' %}">Teachers</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ teacher.user.get_full_name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+
+        {# ── Left column: Profile card ─────────────────────────────── #}
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body text-center">
+
+                    {# FIX: profile_picture removed — field does not exist on User model #}
+                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center
+                                justify-content-center mx-auto mb-3"
+                         style="width: 120px; height: 120px; font-size: 2.5rem; font-weight: 600; flex-shrink: 0;">
+                        {{ teacher.user.first_name|first|upper }}
+                    </div>
+
+                    <h4 class="fw-bold mb-1">{{ teacher.user.get_full_name }}</h4>
+
+                    {# FIX: qualification is nullable — use default fallback #}
+                    <div class="text-muted mb-1">
+                        {{ teacher.qualification|default:"No qualification on record" }}
+                    </div>
+                    <div class="text-muted mb-3 small">
+                        {{ teacher.specialization|default:"" }}
+                    </div>
+
+                    {# Status badge #}
+                    {% if teacher.is_active %}
+                        <span class="badge bg-success mb-3">Active</span>
+                    {% else %}
+                        <span class="badge bg-danger mb-3">Inactive</span>
+                    {% endif %}
+
+                    {# Detail list — using a plain table to avoid SB Admin 2 list-group color conflicts #}
+                    <table class="w-100 mb-4" style="border-collapse: separate; border-spacing: 0 6px;">
+                        <tr>
+                            <td class="text-muted small text-start pe-3" style="white-space: nowrap; width: 40%;">Employee ID</td>
+                            <td class="small text-dark fw-bold text-end">{{ teacher.employee_id|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small text-start pe-3">Email</td>
+                            <td class="small text-dark fw-bold text-end">{{ teacher.user.email|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small text-start pe-3">Phone</td>
+                            <td class="small text-dark fw-bold text-end">{{ teacher.user.phone|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small text-start pe-3">Date Joined</td>
+                            <td class="small text-dark fw-bold text-end">{{ teacher.date_joined|date:"d M Y"|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small text-start pe-3">Date of Birth</td>
+                            <td class="small text-dark fw-bold text-end">{{ teacher.date_of_birth|date:"d M Y"|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small text-start pe-3">Username</td>
+                            <td class="small text-dark fw-bold text-end font-monospace">{{ teacher.user.username|default:"—" }}</td>
+                        </tr>
+                    </table>
+
+                    {# Actions #}
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{% url 'teacher_update' teacher.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit me-1"></i> Edit
+                        </a>
+                        {# FIX: deactivate uses a modal confirmation instead of a raw link #}
+                        <button type="button" class="btn btn-danger btn-sm"
+                                data-bs-toggle="modal" data-bs-target="#deactivateModal">
+                            <i class="fas fa-ban me-1"></i> Deactivate
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        {# ── Right column: Assignments ──────────────────────────────── #}
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 fw-bold text-primary">Teaching Assignments</h6>
+                    <a href="{% url 'teacher_assign_subject' teacher.pk %}" class="btn btn-sm btn-success">
+                        <i class="fas fa-plus me-1"></i> Manage Assignments
+                    </a>
+                </div>
+                <div class="card-body">
+
+                    {# Class teacher alert #}
+                    {% if class_teacher_of %}
+                        <div class=" py-2 mb-3">
+                            <i class="fas fa-chalkboard-teacher me-1"></i>
+                            <strong>Class Teacher for:</strong>
+                            {% for c in class_teacher_of %}
+                                <span class="badge bg-info text-dark ms-1">{{ c.name }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Subject</th>
+                                    <th>Academic Year</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td>{{ assignment.class_assigned.name }}</td>
+                                    <td>{{ assignment.subject.name }}</td>
+                                    <td>{{ assignment.academic_year.name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        No subjects assigned yet.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{# ── Deactivate confirmation modal ─────────────────────────────────── #}
+<div class="modal fade" id="deactivateModal" tabindex="-1" aria-labelledby="deactivateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-danger" id="deactivateModalLabel">
+                    <i class="fas fa-ban me-2"></i>Deactivate Teacher
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to deactivate
+                    <strong>{{ teacher.user.get_full_name }}</strong>?
+                </p>
+                <p class="text-muted small mb-0">
+                    This will prevent them from logging in. You can reactivate
+                    them from User Management at any time.
+                </p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <form action="{% url 'teacher_delete' teacher.pk %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fas fa-ban me-1"></i> Yes, Deactivate
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

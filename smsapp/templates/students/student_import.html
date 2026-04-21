@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Students from CSV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Import Students from CSV</h1>
+    <a href="{% url 'student_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">Select CSV File</label>
+                        <input type="file" name="csv_file" class="form-control" id="csv_file" accept=".csv" required>
+                        <small class="form-text text-muted">Maximum file size: 5MB</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>CSV Format Requirements:</strong>
+                        <ul class="mb-0">
+                            <li>First row must contain headers</li>
+                            <li>Required columns: first_name, last_name, email, date_of_birth, gender, class_name</li>
+                            <li>Optional columns: student_id_number, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, blood_group, allergies, medical_notes</li>
+                            <li>If student_id_number is blank, it will be auto-generated (format: S2026-0001)</li>
+                            <li>Gender values: M (Male), F (Female), O (Other)</li>
+                            <li>Date format: YYYY-MM-DD (e.g., 2010-05-15)</li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Upload and Preview</button>
+                </form>
+            </div>
+        </div>
+        
+        {% if preview_data %}
+        <div class="card">
+            <div class="card-header">
+                <h5>Preview Data ({{ preview_data|length }} rows)</h5>
+            </div>
+            <div class="card-body">
+                {% if errors %}
+                <div class="alert alert-danger">
+                    <strong>Errors Found:</strong>
+                    <ul>
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Name</th>
+                                <th>Student ID</th>
+                                <th>Email</th>
+                                <th>DOB</th>
+                                <th>Gender</th>
+                                <th>Class</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in preview_data %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ row.first_name }} {{ row.last_name }}</td>
+                                <td>{{ row.student_id_number }}</td>
+                                <td>{{ row.email }}</td>
+                                <td>{{ row.date_of_birth }}</td>
+                                <td>{{ row.gender }}</td>
+                                <td>{{ row.class_name }}</td>
+                                <td>
+                                    {% if row.is_valid %}
+                                    <span class="badge bg-success">Valid</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Invalid</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if not errors %}
+                <form method="post" action="{% url 'student_import_confirm' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="csv_data" value="{{ csv_data_json }}">
+                    <button type="submit" class="btn btn-success">Confirm Import</button>
+                    <a href="{% url 'student_import' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Sample CSV Template</h5>
+            </div>
+            <div class="card-body">
+                <p>Download a sample CSV file to use as a template:</p>
+                <a href="{% url 'student_csv_template' %}" class="btn btn-info">Download Template</a>
+                
+                <h6 class="mt-4">Example:</h6>
+                <pre class="bg-light p-2" style="font-size:0.8rem;">first_name,last_name,email,student_id_number,date_of_birth,gender,class_name,emergency_contact_name,emergency_contact_phone
+John,Doe,john@student.com,,2010-05-15,M,Form 1A,Jane Doe,1234567890</pre>
+                <small class="text-muted">Leave student_id_number blank for auto-generation</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

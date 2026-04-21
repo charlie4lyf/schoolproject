@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            Submit: {{ assignment.title }}
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label>Upload File</label>
+                    {{ form.submission_file }}
+                </div>
+                <div class="mb-3">
+                    <label>Comments (Optional)</label>
+                    {{ form.submission_text }}
+                </div>
+                <button type="submit" class="btn btn-success">Submit Work</button>
+                <a href="{% url 'assignment_detail' assignment.pk %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

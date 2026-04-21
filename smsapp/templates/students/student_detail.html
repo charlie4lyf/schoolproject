@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.user.get_full_name }} - Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Student Details</h1>
+    <div>
+        <a href="{% url 'admin_subject_enrollment' student.id %}" class="btn btn-info">
+            <i class="fas fa-book"></i> Manage Subjects
+        </a>
+        <a href="{% url 'student_update' student.id %}" class="btn btn-warning">Edit</a>
+        <a href="{% url 'student_list' %}" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                {% if student.user.profile_picture %}
+                <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="rounded-circle mb-3" width="150" height="150">
+                {% else %}
+                <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width:150px;height:150px;font-size:3rem;">
+                    {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+                </div>
+                {% endif %}
+                <h4>{{ student.user.get_full_name }}</h4>
+                <p class="text-muted">{{ student.student_id_number }}</p>
+                <p class="text-muted">{{ student.user.username }}</p>
+                {% if student.is_active %}
+                <span class="badge bg-success">Active</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Attendance:</strong> {{ attendance_percentage }}%</p>
+                <p><strong>Days Present:</strong> {{ days_present }}</p>
+                <p><strong>Days Absent:</strong> {{ days_absent }}</p>
+                <p><strong>Current Average:</strong> {{ current_average }}%</p>
+                <a href="{% url 'student_attendance_report' student.id %}" class="btn btn-sm btn-primary mt-2">View Full Report</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>First Name:</strong></div>
+                    <div class="col-md-8">{{ student.user.first_name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Last Name:</strong></div>
+                    <div class="col-md-8">{{ student.user.last_name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Email:</strong></div>
+                    <div class="col-md-8">{{ student.user.email }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Date of Birth:</strong></div>
+                    <div class="col-md-8">{{ student.date_of_birth }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Gender:</strong></div>
+                    <div class="col-md-8">{{ student.get_gender_display }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Current Class:</strong></div>
+                    <div class="col-md-8">{{ student.current_class.name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Admission Date:</strong></div>
+                    <div class="col-md-8">{{ student.admission_date }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Emergency Contact</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Contact Name:</strong></div>
+                    <div class="col-md-8">{{ student.emergency_contact_name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Contact Phone:</strong></div>
+                    <div class="col-md-8">{{ student.emergency_contact_phone }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Relationship:</strong></div>
+                    <div class="col-md-8">{{ student.emergency_contact_relationship }}</div>
+                </div>
+            </div>
+        </div>
+        
+        {% if student.medical_notes or student.blood_group or student.allergies %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Medical Information</h5>
+            </div>
+            <div class="card-body">
+                {% if student.blood_group %}
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Blood Group:</strong></div>
+                    <div class="col-md-8">{{ student.blood_group }}</div>
+                </div>
+                {% endif %}
+                {% if student.allergies %}
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Allergies:</strong></div>
+                    <div class="col-md-8">{{ student.allergies }}</div>
+                </div>
+                {% endif %}
+                {% if student.medical_notes %}
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Medical Notes:</strong></div>
+                    <div class="col-md-8">{{ student.medical_notes }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Linked Parents/Guardians</h5>
+            </div>
+            <div class="card-body">
+                {% if parents %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Relationship</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for parent_link in parents %}
+                        <tr>
+                            <td>{{ parent_link.parent.user.get_full_name }}</td>
+                            <td>{{ parent_link.parent.user.email }}</td>
+                            <td>{{ parent_link.parent.user.phone }}</td>
+                            <td>{{ parent_link.get_relationship_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No parents/guardians linked</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

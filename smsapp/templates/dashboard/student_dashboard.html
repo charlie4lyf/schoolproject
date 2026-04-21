@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard - {{ user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2"></i> Student Dashboard</h1>
+    <p>Welcome, <strong>{{ user.get_full_name }}</strong>!</p>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3 col-6">
+                        <a href="{% url 'student_subjects_view' %}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-book"></i> My Subjects
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <a href="{% url 'student_grades_view' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-graph-up"></i> My Grades
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <a href="{% url 'view_profile' %}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-person"></i> My Profile
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <a href="{% url 'assignment_list' %}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-journal-text"></i> Assignments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #dbeafe; color: #2563eb;">
+                <i class="bi bi-card-text"></i>
+            </div>
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem;">Student ID</p>
+                    <h3 class="mb-0" style="font-size: 1.5rem; font-weight: 700; color: #0f172a;">{{ student.student_id_number }}</h3>
+                </div>
+                <i class="bi bi-person-badge" style="font-size: 2rem; color: #e0e7ff;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #dcfce7; color: #16a34a;">
+                <i class="bi bi-book"></i>
+            </div>
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem;">Class</p>
+                    <h3 class="mb-0" style="font-size: 1.5rem; font-weight: 700; color: #0f172a;">{{ student.current_class.name }}</h3>
+                </div>
+                <i class="bi bi-journal-bookmark-fill" style="font-size: 2rem; color: #dcfce7;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #fef3c7; color: #d97706;">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <p class="text-muted mb-1" style="font-size: 0.875rem;">Attendance</p>
+                    <h3 class="mb-0" style="font-size: 1.5rem; font-weight: 700; color: #0f172a;">{{ attendance_percentage }}%</h3>
+                </div>
+                <i class="bi bi-graph-up-arrow" style="font-size: 2rem; color: #fef3c7;"></i>
+            </div>
+            <div class="mt-2">
+                <div class="progress" style="height: 6px; background-color: #fef3c7;">
+                    <div class="progress-bar" role="progressbar" style="width: {{ attendance_percentage }}%; background-color: #d97706;" aria-valuenow="{{ attendance_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Academic Performance Section -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> My Grades (Current Term)</h5>
+                </div>
+                <a href="{% url 'student_grades_view' %}" class="btn btn-sm btn-primary">
+                    View All Grades
+                </a>
+            </div>
+            <div class="card-body">
+                {% if grades %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Average Score</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for grade in grades %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                            {{ grade.subject.name|slice:":2"|upper }}
+                                        </div>
+                                        <div style="font-weight: 600;">{{ grade.subject.name }}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong style="font-size: 1.125rem;">{{ grade.average_score }}%</strong>
+                                    </div>
+                                    <div class="progress mt-1" style="height: 4px;">
+                                        {% if grade.average_score >= 80 %}
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ grade.average_score }}%"></div>
+                                        {% elif grade.average_score >= 60 %}
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ grade.average_score }}%"></div>
+                                        {% else %}
+                                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ grade.average_score }}%"></div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if grade.grade_letter == 'A' %}
+                                    <span class="badge" style="background-color: #10b981; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ grade.grade_letter }}</span>
+                                    {% elif grade.grade_letter == 'B' %}
+                                    <span class="badge" style="background-color: #3b82f6; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ grade.grade_letter }}</span>
+                                    {% elif grade.grade_letter == 'C' %}
+                                    <span class="badge" style="background-color: #f59e0b; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ grade.grade_letter }}</span>
+                                    {% else %}
+                                    <span class="badge" style="background-color: #ef4444; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ grade.grade_letter }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-data"></i>
+                    <h3>No Grades Available</h3>
+                    <p>No grades available yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Section -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Recent Attendance (Last 5)</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_attendance %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in recent_attendance|slice:":5" %}
+                            <tr>
+                                <td>
+                                    <strong>{{ attendance.date }}</strong>
+                                </td>
+                                <td>
+                                    {% if attendance.status == 'present' %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Present
+                                    </span>
+                                    {% elif attendance.status == 'absent' %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-x-circle"></i> Absent
+                                    </span>
+                                    {% elif attendance.status == 'late' %}
+                                    <span class="badge bg-warning">
+                                        <i class="bi bi-clock"></i> Late
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-info-circle"></i> Excused
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-calendar-x"></i>
+                    <h3>No Attendance Records</h3>
+                    <p>No attendance records yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Additional custom styles for student dashboard */
+    .progress {
+        background-color: #f1f5f9;
+    }
+    
+    .badge {
+        font-weight: 600;
+    }
+    
+    /* Hover effect for stat cards */
+    .stat-card:hover {
+        transform: translateY(-4px);
+    }
+    
+    /* Table row hover */
+    .table tbody tr:hover {
+        background-color: #f8fafc;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

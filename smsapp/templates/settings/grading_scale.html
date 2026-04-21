@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Grading Scale{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Grading Scale Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Grade</th>
+                                    <th>Minimum Score</th>
+                                    <th>Maximum Score</th>
+                                    <th>Comment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scale in scales %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ scale.grade }}</span></td>
+                                    <td>{{ scale.min_score }}%</td>
+                                    <td>{{ scale.max_score }}%</td>
+                                    <td>{{ scale.comment|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'grading_scale_delete' scale.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this grade scale?')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No grading scales defined.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Add New Grade Scale</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% if field.errors %}
+                            <div class="text-danger small">
+                                {{ field.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        
+                        <button type="submit" class="btn btn-primary w-100">Add Grade Scale</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Grading Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><strong>A+</strong>: 90-100% - Excellent</li>
+                        <li><strong>A</strong>: 80-89% - Very Good</li>
+                        <li><strong>B</strong>: 70-79% - Good</li>
+                        <li><strong>C</strong>: 60-69% - Satisfactory</li>
+                        <li><strong>D</strong>: 50-59% - Needs Improvement</li>
+                        <li><strong>F</strong>: 0-49% - Failing</li>
+                    </ul>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Grade scales should not overlap. Ensure each score falls into exactly one grade.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

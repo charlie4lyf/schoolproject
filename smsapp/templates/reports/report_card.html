@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Report Card - {{ student.user.get_full_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 5px 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 3px 0;
+        }
+        .student-info {
+            margin-bottom: 20px;
+        }
+        .student-info table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .student-info td {
+            padding: 5px;
+            border: 1px solid #ddd;
+        }
+        .student-info td:first-child {
+            font-weight: bold;
+            width: 30%;
+            background-color: #f5f5f5;
+        }
+        .grades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .grades-table th {
+            background-color: #333;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #333;
+        }
+        .grades-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        .grades-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border: 2px solid #333;
+        }
+        .summary h3 {
+            margin-top: 0;
+        }
+        .comments {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .comments h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .signatures {
+            margin-top: 30px;
+            display: table;
+            width: 100%;
+        }
+        .signature-block {
+            display: table-cell;
+            width: 50%;
+            padding: 10px;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 40px;
+            padding-top: 5px;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ school_name }}</h1>
+        <p>{{ school_address }}</p>
+        <p>{{ school_phone }} | {{ school_email }}</p>
+        <h2 style="margin-top: 15px;">STUDENT REPORT CARD</h2>
+        <p>{{ term.name }} - {{ term.academic_year.name }}</p>
+    </div>
+
+    <div class="student-info">
+        <table>
+            <tr>
+                <td>Student Name:</td>
+                <td>{{ student.user.get_full_name }}</td>
+                <td>Student ID:</td>
+                <td>{{ student.student_id_number }}</td>
+            </tr>
+            <tr>
+                <td>Class:</td>
+                <td>{{ student.current_class.name }}</td>
+                <td>Academic Year:</td>
+                <td>{{ term.academic_year.name }}</td>
+            </tr>
+            <tr>
+                <td>Term:</td>
+                <td>{{ term.name }}</td>
+                <td>Report Date:</td>
+                <td>{{ report_date }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Academic Performance</h3>
+    <table class="grades-table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Score (%)</th>
+                <th>Grade</th>
+                <th>Teacher Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for grade in grades %}
+            <tr>
+                <td>{{ grade.subject.name }}</td>
+                <td>{{ grade.average_score }}%</td>
+                <td><strong>{{ grade.grade_letter }}</strong></td>
+                <td>{{ grade.teacher_comment|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary">
+        <h3>Summary</h3>
+        <table style="width: 100%; border: none;">
+            <tr>
+                <td style="border: none; padding: 5px;"><strong>Overall Average:</strong></td>
+                <td style="border: none; padding: 5px;">{{ overall_average }}%</td>
+                <td style="border: none; padding: 5px;"><strong>Overall Grade:</strong></td>
+                <td style="border: none; padding: 5px;">{{ overall_grade }}</td>
+            </tr>
+            <tr>
+                <td style="border: none; padding: 5px;"><strong>Total Subjects:</strong></td>
+                <td style="border: none; padding: 5px;">{{ grades|length }}</td>
+                <td style="border: none; padding: 5px;"><strong>Class Rank:</strong></td>
+                <td style="border: none; padding: 5px;">{{ class_rank|default:"N/A" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3 style="margin-top: 20px;">Attendance Record</h3>
+    <table class="student-info">
+        <tr>
+            <td>Days Present:</td>
+            <td>{{ attendance.days_present }}</td>
+            <td>Days Absent:</td>
+            <td>{{ attendance.days_absent }}</td>
+        </tr>
+        <tr>
+            <td>Days Late:</td>
+            <td>{{ attendance.days_late }}</td>
+            <td>Attendance Rate:</td>
+            <td>{{ attendance.percentage }}%</td>
+        </tr>
+    </table>
+
+    {% if class_teacher_comment %}
+    <div class="comments">
+        <h4>Class Teacher's Comment:</h4>
+        <p>{{ class_teacher_comment }}</p>
+    </div>
+    {% endif %}
+
+    {% if principal_comment %}
+    <div class="comments">
+        <h4>Principal's Comment:</h4>
+        <p>{{ principal_comment }}</p>
+    </div>
+    {% endif %}
+
+    <div class="signatures">
+        <div class="signature-block">
+            <div class="signature-line">
+                Class Teacher: {{ class_teacher_name }}
+            </div>
+        </div>
+        <div class="signature-block">
+            <div class="signature-line">
+                Principal
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>This is an official document from {{ school_name }}</p>
+        <p>Generated on {{ report_date }}</p>
+    </div>
+</body>
+</html>

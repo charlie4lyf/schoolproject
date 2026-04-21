@@ -1,0 +1,587 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - EduManage{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page Header Styling */
+    .page-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .page-header h1 i {
+        color: var(--primary-color);
+        font-size: 1.75rem;
+    }
+
+    .page-header p {
+        font-size: 1rem;
+        color: #64748b;
+        margin-bottom: 0;
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        height: 100%;
+        border: 1px solid #f1f5f9;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin-bottom: 1rem;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+
+    .stat-card p {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Progress Bar Styling */
+    .stat-progress {
+        margin-top: 1rem;
+    }
+
+    .progress {
+        height: 8px;
+        background-color: #f1f5f9;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        transition: width 1.2s ease-in-out;
+        border-radius: 4px;
+    }
+
+    /* Card Styling */
+    .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        transition: box-shadow 0.3s ease;
+        height: 100%;
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-header {
+        background-color: #f8fafc;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1.25rem 1.5rem;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .card-header h5 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-header h5 i {
+        color: var(--primary-color);
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Quick Action Buttons */
+    .action-btn {
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1.25rem;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 0;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color);
+    }
+
+    .action-btn:hover::before {
+        opacity: 0.05;
+    }
+
+    .action-btn-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+        position: relative;
+        z-index: 1;
+    }
+
+    .action-btn:hover .action-btn-icon {
+        transform: rotate(5deg) scale(1.1);
+    }
+
+    .action-btn-content {
+        flex-grow: 1;
+        position: relative;
+        z-index: 1;
+    }
+
+    .action-btn-title {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        transition: color 0.3s ease;
+    }
+
+    .action-btn:hover .action-btn-title {
+        color: var(--primary-color);
+    }
+
+    .action-btn-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 0;
+    }
+
+    /* Alternative button styles for variety */
+    .action-btn:nth-child(1) .action-btn-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .action-btn:nth-child(2) .action-btn-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .action-btn:nth-child(3) .action-btn-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .action-btn:nth-child(4) .action-btn-icon {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    /* Recent Activity List */
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .activity-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.2s ease;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background-color: #f8fafc;
+        margin: 0 -1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        border-radius: 8px;
+    }
+
+    .activity-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .activity-content {
+        flex-grow: 1;
+    }
+
+    .activity-text {
+        color: #0f172a;
+        margin-bottom: 0.25rem;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+    }
+
+    .activity-text strong {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .activity-meta {
+        color: #64748b;
+        font-size: 0.8125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .activity-meta i {
+        font-size: 0.75rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state-text {
+        color: #94a3b8;
+        font-size: 0.9375rem;
+        margin-bottom: 0;
+    }
+
+    /* Scrollbar Styling */
+    .card-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .card-body::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 3px;
+    }
+
+    .card-body::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+
+    .card-body::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .page-header h1 {
+            font-size: 1.75rem;
+        }
+
+        .stat-card h3 {
+            font-size: 1.75rem;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .stat-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1>
+        <i class="bi bi-speedometer2"></i> 
+        Admin Dashboard
+    </h1>
+    <p>Welcome back, <strong>{{ user.get_full_name }}</strong>! Here's your school overview.</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <!-- Total Students Card -->
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #dbeafe; color: #2563eb;">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <h3>{{ total_students|default:0 }}</h3>
+            <p>Total Students</p>
+        </div>
+    </div>
+    
+    <!-- Total Teachers Card -->
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #dcfce7; color: #16a34a;">
+                <i class="bi bi-person-workspace"></i>
+            </div>
+            <h3>{{ total_teachers|default:0 }}</h3>
+            <p>Total Teachers</p>
+        </div>
+    </div>
+    
+    <!-- Total Classes Card -->
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #fef3c7; color: #d97706;">
+                <i class="bi bi-easel-fill"></i>
+            </div>
+            <h3>{{ total_classes|default:0 }}</h3>
+            <p>Total Classes</p>
+        </div>
+    </div>
+    
+    <!-- Attendance Card -->
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background-color: #f3e8ff; color: #9333ea;">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <h3>{{ attendance_percentage|default:0 }}%</h3>
+            <p>Today's Attendance</p>
+            
+            <div class="stat-progress">
+                {% if attendance_percentage >= 90 %}
+                    <div class="progress">
+                        <div class="progress-bar" 
+                             role="progressbar" 
+                             style="width: {{ attendance_percentage }}%; background-color: #16a34a;" 
+                             aria-valuenow="{{ attendance_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                {% elif attendance_percentage >= 75 %}
+                    <div class="progress">
+                        <div class="progress-bar" 
+                             role="progressbar" 
+                             style="width: {{ attendance_percentage }}%; background-color: #f59e0b;" 
+                             aria-valuenow="{{ attendance_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="progress">
+                        <div class="progress-bar" 
+                             role="progressbar" 
+                             style="width: {{ attendance_percentage|default:0 }}%; background-color: #ef4444;" 
+                             aria-valuenow="{{ attendance_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions & Recent Activity -->
+<div class="row g-4">
+    <!-- Quick Actions Section -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-lightning-charge-fill"></i> 
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Add Student -->
+                    <div class="col-md-6">
+                        <a href="{% url 'student_create' %}" class="action-btn">
+                            <div class="action-btn-icon">
+                                <i class="bi bi-person-plus-fill"></i>
+                            </div>
+                            <div class="action-btn-content">
+                                <div class="action-btn-title">Add Student</div>
+                                <div class="action-btn-subtitle">Enroll new student</div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Add Teacher -->
+                    <div class="col-md-6">
+                        <a href="{% url 'teacher_create' %}" class="action-btn">
+                            <div class="action-btn-icon">
+                                <i class="bi bi-person-fill-add"></i>
+                            </div>
+                            <div class="action-btn-content">
+                                <div class="action-btn-title">Add Teacher</div>
+                                <div class="action-btn-subtitle">Register new teacher</div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Create Class -->
+                    <div class="col-md-6">
+                        <a href="{% url 'class_create' %}" class="action-btn">
+                            <div class="action-btn-icon">
+                                <i class="bi bi-journal-plus"></i>
+                            </div>
+                            <div class="action-btn-content">
+                                <div class="action-btn-title">Create Class</div>
+                                <div class="action-btn-subtitle">Add new class</div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Admin Panel -->
+                    <div class="col-md-6">
+                        <a href="/admin/" class="action-btn">
+                            <div class="action-btn-icon">
+                                <i class="bi bi-gear-fill"></i>
+                            </div>
+                            <div class="action-btn-content">
+                                <div class="action-btn-title">Admin Panel</div>
+                                <div class="action-btn-subtitle">Advanced settings</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity Section -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    <i class="bi bi-clock-history"></i> 
+                    Recent Activity
+                </h5>
+            </div>
+            <div class="card-body" style="max-height: 450px; overflow-y: auto;">
+                {% if recent_activities %}
+                    <ul class="activity-list">
+                        {% for activity in recent_activities %}
+                        <li class="activity-item">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="activity-avatar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    {{ activity.user.get_full_name|slice:":2"|upper|default:"NA" }}
+                                </div>
+                                <div class="activity-content">
+                                    <p class="activity-text">
+                                        <strong>{{ activity.user.get_full_name|default:"Unknown User" }}</strong> 
+                                        {{ activity.action|default:"performed an action on" }} 
+                                        {{ activity.model_name|default:"an item" }}
+                                    </p>
+                                    <div class="activity-meta">
+                                        <i class="bi bi-clock"></i>
+                                        <span>{{ activity.timestamp|date:"M d, Y g:i A"|default:"Recently" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox empty-state-icon"></i>
+                        <p class="empty-state-text">No recent activity to display</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

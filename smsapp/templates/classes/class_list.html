@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Classes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Classes</h5>
+                    <a href="{% url 'class_create' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Create Class
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                 <tr>
+                                    <th>Class Name</th>
+                                    <th>Grade Level</th>
+                                    <th>Academic Year</th>
+                                    <th>Class Teacher</th>
+                                    <th>Subjects</th>
+                                    <th>Actions</th>
+                                 </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in classes %}
+                                 <tr>
+                                    <td><strong>{{ class.name }}</strong></td>
+                                    <td>{{ class.get_grade_level_display }}</td>
+                                    <td>{{ class.academic_year.name }}</td>
+                                    <td>
+                                        {% if class.class_teacher %}
+                                            {{ class.class_teacher.user.get_full_name }}
+                                        {% else %}
+                                            <span class="text-muted">Not Assigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ class.total_subjects|default:0 }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'class_detail' class.id %}" class="btn btn-sm btn-info" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'class_update' class.id %}" class="btn btn-sm btn-warning" title="Edit Class">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'class_subject_assignment_list' class.id %}" class="btn btn-sm btn-success" title="Manage Subjects">
+                                                <i class="fas fa-book"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                 </tr>
+                                {% empty %}
+                                 <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="fas fa-school fa-3x mb-3 d-block"></i>
+                                            <p>No classes created yet.</p>
+                                            <a href="{% url 'class_create' %}" class="btn btn-primary">Create First Class</a>
+                                        </div>
+                                    </td>
+                                 </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">User Management</h1>
+        <div class="dropdown">
+            <!-- <button class="btn btn-primary dropdown-toggle" type="button" id="createDropdown" data-bs-toggle="dropdown">
+                <i class="fas fa-plus"></i> Create User
+            </button> -->
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'user_create_admin' %}">Administrator</a></li>
+                <li><a class="dropdown-item" href="{% url 'teacher_create' %}">Teacher</a></li>
+                <li><a class="dropdown-item" href="{% url 'student_create' %}">Student</a></li>
+                <li><a class="dropdown-item" href="{% url 'parent_create' %}">Parent</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form class="row g-3" method="get">
+                <div class="col-md-4">
+                    <select name="role" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Roles</option>
+                        <option value="admin"   {% if role_filter == 'admin'   %}selected{% endif %}>Admin</option>
+                        <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>Teacher</option>
+                        <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Student</option>
+                        <option value="parent"  {% if role_filter == 'parent'  %}selected{% endif %}>Parent</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <input type="text" name="search" class="form-control"
+                           placeholder="Search by name or email..."
+                           value="{{ search_query }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-secondary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_obj in users %}
+                        <tr {% if not user_obj.is_active %}class="table-secondary"{% endif %}>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {# FIX: profile_picture removed — User model has no such field #}
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2"
+                                         style="width: 30px; height: 30px; font-size: 0.75rem; font-weight: 600; flex-shrink: 0;">
+                                        {{ user_obj.first_name|first|upper }}
+                                    </div>
+                                    {{ user_obj.get_full_name }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if user_obj.role == 'admin' %}
+                                    <span class="badge bg-danger">Admin</span>
+                                {% elif user_obj.role == 'teacher' %}
+                                    <span class="badge bg-info text-dark">Teacher</span>
+                                {% elif user_obj.role == 'student' %}
+                                    <span class="badge bg-success">Student</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Parent</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user_obj.email }}</td>
+                            <td>
+                                {% if user_obj.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user_obj.last_login|date:"M d, Y"|default:"Never" }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'user_update' user_obj.pk %}"
+                                       class="btn btn-sm btn-light" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'manage_user_role' user_obj.pk %}"
+                                       class="btn btn-sm btn-light" title="Change Role">
+                                        <i class="fas fa-user-tag"></i>
+                                    </a>
+                                    <form action="{% url 'toggle_user_status' user_obj.pk %}"
+                                          method="post" style="display:inline;">
+                                        {% csrf_token %}
+                                        {% if user_obj.is_active %}
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-light text-danger"
+                                                    title="Deactivate"
+                                                    onclick="return confirm('Deactivate this user?')">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        {% else %}
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-light text-success"
+                                                    title="Activate">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No users found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# FIX: preserve role_filter and search_query across pagination page changes #}
+            {% if users.has_other_pages %}
+            <nav aria-label="User pagination">
+                <ul class="pagination justify-content-center">
+                    {% if users.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="?page={{ users.previous_page_number }}&role={{ role_filter }}&search={{ search_query }}">
+                                Previous
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            Page {{ users.number }} of {{ users.paginator.num_pages }}
+                        </span>
+                    </li>
+                    {% if users.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="?page={{ users.next_page_number }}&role={{ role_filter }}&search={{ search_query }}">
+                                Next
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

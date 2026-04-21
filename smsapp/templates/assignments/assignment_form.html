@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">{{ title }}</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label>Title</label>
+                        {{ form.title }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Due Date</label>
+                        {{ form.due_date }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Class</label>
+                        {{ form.class_assigned }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Subject</label>
+                        {{ form.subject }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label>Description</label>
+                    {{ form.description }}
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Max Score</label>
+                        {{ form.max_score }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Attachment (Optional)</label>
+                        {{ form.attachment }}
+                    </div>
+                </div>
+                <div class="mb-3 form-check">
+                    {{ form.allow_late_submission }}
+                    <label class="form-check-label">Allow Late Submissions</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Publish Assignment</button>
+                <a href="{% url 'assignment_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

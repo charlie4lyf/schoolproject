@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if assessment %}Edit Assessment{% else %}Create Assessment{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{% if assessment %}Edit Assessment{% else %}Create Assessment{% endif %}</h1>
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">Cancel</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_name" class="form-label">Assessment Name *</label>
+                    <input type="text" name="name" class="form-control" id="id_name" value="{{ form.name.value|default:'' }}" placeholder="e.g., Test 1, Midterm, Final Exam" required>
+                    <small class="form-text text-muted">What is this assessment called?</small>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="id_assessment_date" class="form-label">Assessment Date *</label>
+                    <input type="date" name="assessment_date" class="form-control" id="id_assessment_date" value="{{ form.assessment_date.value|default:'' }}" required>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="id_term" class="form-label">Term *</label>
+                    <select name="term" class="form-select" id="id_term" required>
+                        <option value="">Select Term</option>
+                        {% for term in terms %}
+                        <option value="{{ term.id }}" {% if form.term.value == term.id or assessment.term.id == term.id %}selected{% endif %}>
+                            {{ term.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_class_assigned" class="form-label">Class *</label>
+                    <select name="class_assigned" class="form-select" id="id_class_assigned" required>
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}" {% if form.class_assigned.value == class.id or assessment.class_assigned.id == class.id %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_subject" class="form-label">Subject *</label>
+                    <select name="subject" class="form-select" id="id_subject" required>
+                        <option value="">Select Subject</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}" {% if form.subject.value == subject.id or assessment.subject.id == subject.id %}selected{% endif %}>
+                            {{ subject.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_weight_percentage" class="form-label">Weight Percentage *</label>
+                    <input type="number" name="weight_percentage" class="form-control" id="id_weight_percentage" value="{{ form.weight_percentage.value|default:'' }}" min="0" max="100" step="0.01" required>
+                    <small class="form-text text-muted">How much does this count toward final grade? (e.g., 20, 30, 50)</small>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="id_max_score" class="form-label">Maximum Score *</label>
+                    <input type="number" name="max_score" class="form-control" id="id_max_score" value="{{ form.max_score.value|default:'100' }}" min="1" step="0.01" required>
+                    <small class="form-text text-muted">What's the highest possible score?</small>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_description" class="form-label">Description (Optional)</label>
+                <textarea name="description" class="form-control" id="id_description" rows="3">{{ form.description.value|default:'' }}</textarea>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>Note:</strong> Make sure the total weight percentage for all assessments in this term equals 100%.
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">{% if assessment %}Update Assessment{% else %}Create Assessment{% endif %}</button>
+                <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

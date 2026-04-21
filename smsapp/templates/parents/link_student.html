@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    Link Child to {{ parent.user.get_full_name }}
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label>Select Student</label>
+                            {{ form.student }}
+                            <small class="text-muted">Search by scrolling or typing first letter</small>
+                        </div>
+                        <div class="mb-3">
+                            <label>Relationship</label>
+                            {{ form.relationship }}
+                        </div>
+                        <div class="mb-3 form-check">
+                            {{ form.is_primary_contact }}
+                            <label class="form-check-label">Is Primary Contact?</label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Link Student</button>
+                            <a href="{% url 'parent_detail' parent.pk %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

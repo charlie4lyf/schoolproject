@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if student %}Edit Student{% else %}Add New Student{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{% if student %}Edit Student{% else %}Add New Student{% endif %}</h1>
+    <a href="{% url 'student_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+            
+            <h5 class="mb-3">Personal Information</h5>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_first_name" class="form-label">First Name *</label>
+                    <input type="text" name="first_name" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}" id="id_first_name" value="{{ form.first_name.value|default:'' }}" required>
+                    {% if form.first_name.errors %}
+                    <div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="id_last_name" class="form-label">Last Name *</label>
+                    <input type="text" name="last_name" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}" id="id_last_name" value="{{ form.last_name.value|default:'' }}" required>
+                    {% if form.last_name.errors %}
+                    <div class="invalid-feedback">{{ form.last_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_email" class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" id="id_email" value="{{ form.email.value|default:'' }}" required>
+                    {% if form.email.errors %}
+                    <div class="invalid-feedback">{{ form.email.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="id_student_id_number" class="form-label">Student ID Number</label>
+                    <input type="text" name="student_id_number" class="form-control {% if form.student_id_number.errors %}is-invalid{% endif %}" id="id_student_id_number" value="{{ form.student_id_number.value|default:'' }}" {% if not student %}readonly{% endif %}>
+                    {% if not student %}
+                    <small class="form-text text-muted">Will be generated automatically</small>
+                    {% endif %}
+                    {% if form.student_id_number.errors %}
+                    <div class="invalid-feedback">{{ form.student_id_number.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="id_date_of_birth" class="form-label">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" class="form-control {% if form.date_of_birth.errors %}is-invalid{% endif %}" id="id_date_of_birth" value="{{ form.date_of_birth.value|default:'' }}" required>
+                    {% if form.date_of_birth.errors %}
+                    <div class="invalid-feedback">{{ form.date_of_birth.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_gender" class="form-label">Gender *</label>
+                    <select name="gender" class="form-select {% if form.gender.errors %}is-invalid{% endif %}" id="id_gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="M" {% if form.gender.value == 'M' %}selected{% endif %}>Male</option>
+                        <option value="F" {% if form.gender.value == 'F' %}selected{% endif %}>Female</option>
+                    </select>
+                    {% if form.gender.errors %}
+                    <div class="invalid-feedback">{{ form.gender.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_current_class" class="form-label">Current Class *</label>
+                    <select name="current_class" class="form-select {% if form.current_class.errors %}is-invalid{% endif %}" id="id_current_class" required>
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}" {% if form.current_class.value == class.id or student.current_class.id == class.id %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.current_class.errors %}
+                    <div class="invalid-feedback">{{ form.current_class.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <h5 class="mb-3 mt-4">Emergency Contact</h5>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="id_emergency_contact_name" class="form-label">Contact Name *</label>
+                    <input type="text" name="emergency_contact_name" class="form-control {% if form.emergency_contact_name.errors %}is-invalid{% endif %}" id="id_emergency_contact_name" value="{{ form.emergency_contact_name.value|default:'' }}" required>
+                    {% if form.emergency_contact_name.errors %}
+                    <div class="invalid-feedback">{{ form.emergency_contact_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_emergency_contact_phone" class="form-label">Contact Phone *</label>
+                    <input type="text" name="emergency_contact_phone" class="form-control {% if form.emergency_contact_phone.errors %}is-invalid{% endif %}" id="id_emergency_contact_phone" value="{{ form.emergency_contact_phone.value|default:'' }}" required>
+                    {% if form.emergency_contact_phone.errors %}
+                    <div class="invalid-feedback">{{ form.emergency_contact_phone.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="id_emergency_contact_relationship" class="form-label">Relationship *</label>
+                    <input type="text" name="emergency_contact_relationship" class="form-control {% if form.emergency_contact_relationship.errors %}is-invalid{% endif %}" id="id_emergency_contact_relationship" value="{{ form.emergency_contact_relationship.value|default:'' }}" required>
+                    {% if form.emergency_contact_relationship.errors %}
+                    <div class="invalid-feedback">{{ form.emergency_contact_relationship.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <h5 class="mb-3 mt-4">Medical Information (Optional)</h5>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_blood_group" class="form-label">Blood Group</label>
+                    <input type="text" name="blood_group" class="form-control" id="id_blood_group" value="{{ form.blood_group.value|default:'' }}" placeholder="e.g., O+, A-, AB+">
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="id_allergies" class="form-label">Allergies</label>
+                    <input type="text" name="allergies" class="form-control" id="id_allergies" value="{{ form.allergies.value|default:'' }}" placeholder="e.g., Peanuts, Penicillin">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_medical_notes" class="form-label">Medical Notes</label>
+                <textarea name="medical_notes" class="form-control" id="id_medical_notes" rows="3">{{ form.medical_notes.value|default:'' }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <div class="form-check">
+                    <input type="checkbox" name="is_active" class="form-check-input" id="id_is_active" {% if not student or student.is_active %}checked{% endif %}>
+                    <label class="form-check-label" for="id_is_active">Active Student</label>
+                </div>
+            </div>
+            
+            {% if not student %}
+            <div class="alert alert-info">
+                <strong>Note:</strong> A default password will be generated for this student. They can change it after first login.
+            </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">{% if student %}Update Student{% else %}Add Student{% endif %}</button>
+                <a href="{% url 'student_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

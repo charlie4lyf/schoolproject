@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load math_filters %}
+{% block title %}Attendance History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-clock-history"></i> Attendance History</h1>
+    <p>View and track attendance records across different dates and classes</p>
+</div>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel"></i> Filter Records</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="class" class="form-label">Class</label>
+                <select name="class" id="class" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                    <option value="{{ cls.id }}" {% if cls.id|stringformat:"s" == selected_class %}selected{% endif %}>
+                        {{ cls.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block w-100">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Attendance Records Grid -->
+<div class="row g-4">
+    {% for date, data in attendance_by_date.items %}
+    <div class="col-md-4">
+        <div class="card h-100" style="border: none; overflow: hidden;">
+            <!-- Card Header with Status Indicator -->
+            <div class="card-header" style="{% if data.is_marked %}background: linear-gradient(135deg, #10b981 0%, #059669 100%);{% else %}background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);{% endif %} color: white; border: none; padding: 1.25rem;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1" style="font-weight: 700;">{{ date|date:"M d, Y" }}</h5>
+                        <small style="opacity: 0.9;">{{ date|date:"l" }}</small>
+                    </div>
+                    <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        {% if data.is_marked %}
+                        <i class="bi bi-check-circle-fill" style="font-size: 1.5rem;"></i>
+                        {% else %}
+                        <i class="bi bi-x-circle-fill" style="font-size: 1.5rem;"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card Body with Stats -->
+            <div class="card-body" style="padding: 1.5rem;">
+                {% if data.is_marked %}
+                <!-- Attendance Percentage Circle -->
+                <div class="text-center mb-4">
+                    <div style="position: relative; display: inline-block;">
+                        {% with circumference=339.292 dashoffset=339.292|mul:data.percentage|div:100 %}
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="#f1f5f9" stroke-width="8"/>
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="#10b981" stroke-width="8" 
+                                    stroke-dasharray="{{ circumference|floatformat:0 }}" 
+                                    stroke-dashoffset="{{ dashoffset|floatformat:0 }}"
+                                    transform="rotate(-90 60 60)"
+                                    style="transition: stroke-dashoffset 1s ease;"/>
+                        </svg>
+                        {% endwith %}
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <div style="font-size: 1.75rem; font-weight: 700; color: #10b981;">{{ data.percentage }}%</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">Present</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="p-3 text-center" style="background-color: #f0fdf4; border-radius: 0.5rem; border-left: 3px solid #10b981;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">{{ data.present_count }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Present</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 text-center" style="background-color: #fef2f2; border-radius: 0.5rem; border-left: 3px solid #ef4444;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">{{ data.absent_count }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Absent</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 text-center" style="background-color: #fffbeb; border-radius: 0.5rem; border-left: 3px solid #f59e0b;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;">{{ data.late_count }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Late</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 text-center" style="background-color: #eff6ff; border-radius: 0.5rem; border-left: 3px solid #3b82f6;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;">{{ data.excused_count }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Excused</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #ef4444; opacity: 0.5;"></i>
+                    <h5 class="mt-3 text-danger">Attendance Not Marked</h5>
+                    <p class="text-muted mb-0">No attendance records for this date</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Card Footer with Action Button -->
+            {% if data.is_marked %}
+            <div class="card-footer" style="background-color: #f8fafc; border: none; padding: 1rem 1.5rem;">
+                <a href="{% url 'attendance_by_date' %}?date={{ date|date:'Y-m-d' }}{% if selected_class %}&class={{ selected_class }}{% endif %}" 
+                   class="btn btn-primary w-100" style="border-radius: 0.5rem;">
+                    <i class="bi bi-eye"></i> View Details
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="empty-state">
+            <i class="bi bi-calendar-x"></i>
+            <h3>No Attendance Records Found</h3>
+            <p>No attendance records found for the selected period. Try adjusting your filters.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    /* Hover effect for attendance cards */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Pulse animation for not marked cards */
+    @keyframes pulse-red {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .card-header {
+        animation: pulse-red 2s ease-in-out infinite;
+    }
+    
+    .card:hover .card-header {
+        animation: none;
+    }
+</style>
+{% endblock %}

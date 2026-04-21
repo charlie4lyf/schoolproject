@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Enter Grades - {{ assessment.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Enter Grades - {{ assessment.name }}</h1>
+    <a href="{% url 'view_gradebook' assessment.class_assigned.id assessment.subject.id %}" class="btn btn-secondary">Back to Gradebook</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>Assessment:</strong> {{ assessment.name }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Class:</strong> {{ assessment.class_assigned.name }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Subject:</strong> {{ assessment.subject.name }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Max Score:</strong> {{ assessment.max_score }}</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>Weight:</strong> {{ assessment.weight_percentage }}%</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Date:</strong> {{ assessment.assessment_date }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Term:</strong> {{ assessment.term.name }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if term_finalized %}
+<div class="alert alert-warning">
+    <strong>Warning:</strong> This term has been finalized. Grades cannot be edited.
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Student Grades</h5>
+        </div>
+        <div class="card-body">
+            {% if students %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Score (out of {{ assessment.max_score }})</th>
+                            <th>Percentage</th>
+                            <th>Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ student.student_id_number }}</td>
+                            <td>{{ student.user.get_full_name }}</td>
+                            <td>
+                                {% if not term_finalized %}
+                                <input type="number" name="score_{{ student.id }}" class="form-control form-control-sm" 
+                                       value="{{ student.grade_score|default:'' }}" min="0" max="{{ assessment.max_score }}" step="0.01"
+                                       onchange="calculatePercentage(this, {{ assessment.max_score }}, {{ student.id }})">
+                                {% else %}
+                                {{ student.grade_score|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span id="percentage_{{ student.id }}">
+                                    {% if student.grade_score %}
+                                    {{ student.grade_percentage }}%
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if not term_finalized %}
+                                <input type="text" name="comment_{{ student.id }}" class="form-control form-control-sm" 
+                                       value="{{ student.grade_comment|default:'' }}" placeholder="Optional">
+                                {% else %}
+                                {{ student.grade_comment|default:"-" }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not term_finalized %}
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary btn-lg">Save Grades</button>
+                <a href="{% url 'view_gradebook' assessment.class_assigned.id assessment.subject.id %}" class="btn btn-secondary">Cancel</a>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <p>No students in this class.</p>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+function calculatePercentage(input, maxScore, studentId) {
+    const score = parseFloat(input.value);
+    const percentageSpan = document.getElementById('percentage_' + studentId);
+    
+    if (!isNaN(score) && score >= 0) {
+        const percentage = ((score / maxScore) * 100).toFixed(1);
+        percentageSpan.textContent = percentage + '%';
+    } else {
+        percentageSpan.textContent = '-';
+    }
+}
+</script>
+{% endblock %}

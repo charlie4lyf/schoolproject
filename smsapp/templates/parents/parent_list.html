@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Parent Management</h1>
+        <a href="{% url 'parent_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New Parent
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <form class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control bg-light border-0 small" placeholder="Search name or email..." value="{{ search_query }}">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Children Linked</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for parent in parents %}
+                        <tr>
+                            <td><a href="{% url 'parent_detail' parent.pk %}">{{ parent.user.get_full_name }}</a></td>
+                            <td>{{ parent.user.email }}</td>
+                            <td>{{ parent.user.phone }}</td>
+                            <td>
+                                {% for link in parent.student_relationships.all %}
+                                    <span class="badge bg-secondary">{{ link.student.user.first_name }}</span>
+                                {% empty %}
+                                    <span class="text-muted small">No children linked</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <a href="{% url 'link_student' parent.pk %}" class="btn btn-info btn-sm" title="Link Child"><i class="fas fa-link"></i></a>
+                                <a href="{% url 'parent_update' parent.pk %}" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center">No parents found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

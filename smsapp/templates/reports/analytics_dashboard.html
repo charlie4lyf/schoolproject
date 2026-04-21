@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">School Analytics Dashboard</h1>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Performing Subjects</h6>
+                </div>
+                <div class="card-body">
+                    {% for subject in subject_performance %}
+                    <h4 class="small font-weight-bold">{{ subject.name }} <span class="float-right">{{ subject.avg_score|floatform:1 }}%</span></h4>
+                    <div class="progress mb-4">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ subject.avg_score|floatform:0 }}%"></div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No data available.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Class Rankings (Avg Score)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Average Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cls in class_performance %}
+                                <tr>
+                                    <td>{{ cls.name }}</td>
+                                    <td>
+                                        {% if cls.avg_score %}
+                                            <span class="badge {% if cls.avg_score >= 80 %}bg-success{% elif cls.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ cls.avg_score|floatform:1 }}%
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2">No data available.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-dark">Overall Grade Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        {% for item in grade_distribution %}
+                        <div class="col-md-2 mb-3">
+                            <div class="card border-left-primary h-100 py-2">
+                                <div class="card-body">
+                                    <div class="h1 font-weight-bold text-primary text-uppercase mb-1">{{ item.grade_letter }}</div>
+                                    <div class="h5 mb-0 text-gray-800">{{ item.count }} Students</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

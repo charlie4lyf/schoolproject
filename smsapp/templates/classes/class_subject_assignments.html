@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Subject Assignments - {{ class_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Subject Assignments - {{ class_obj.name }}</h5>
+                    <a href="{% url 'class_subject_assign' class_obj.id %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Assign Subject
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Subject Code</th>
+                                    <th>Teacher</th>
+                                    <th>Academic Year</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td><strong>{{ assignment.subject.name }}</strong></td>
+                                    <td><span class="badge bg-info">{{ assignment.subject.code }}</span></td>
+                                    <td>{{ assignment.teacher.user.get_full_name }}</td>
+                                    <td>{{ assignment.academic_year.name }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ assignment.id }}">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                        
+                                        <!-- Delete Modal -->
+                                        <div class="modal fade" id="deleteModal{{ assignment.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Confirm Remove</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        Remove {{ assignment.subject.name }} from {{ class_obj.name }}?
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="POST" action="{% url 'class_subject_remove' assignment.id %}">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-danger">Remove</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No subjects assigned to this class</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">School Information</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3"><label>School Name</label>{{ form.name }}</div>
+                        <div class="mb-3"><label>Email</label>{{ form.email }}</div>
+                        <div class="mb-3"><label>Phone</label>{{ form.phone }}</div>
+                        <div class="mb-3"><label>Website</label>{{ form.website }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3"><label>Address</label>{{ form.address }}</div>
+                        <div class="mb-3"><label>Report Card Header</label>{{ form.report_header_text }}</div>
+                        <div class="mb-3"><label>Logo</label>{{ form.logo }}</div>
+                        <div class="mb-3"><label>Principal Signature</label>{{ form.principal_signature }}</div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

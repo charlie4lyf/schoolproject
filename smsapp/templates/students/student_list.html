@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Student List{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Students</h1>
+    <div>
+        <!-- <a href="{% url 'student_import' %}" class="btn btn-info">Import CSV</a> -->
+        <a href="{% url 'student_create' %}" class="btn btn-primary">Add New Student</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="Search by name or ID" value="{{ search_query }}">
+            </div>
+            <div class="col-md-3">
+                <select name="class" class="form-select">
+                    <option value="">All Classes</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}" {% if class.id|stringformat:"s" == class_filter %}selected{% endif %}>
+                        {{ class.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{% url 'student_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p>Total Students: <strong>{{ page_obj.paginator.count }}</strong></p>
+        
+        {% if students %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>UserName</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Gender</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.user.username }}</td>
+                        <td>{{ student.student_id_number }}</td>
+                        <td>{{ student.user.get_full_name }}</td>
+                        <td>{{ student.get_gender_display }}</td>
+                        <td>{{ student.current_class.name }}</td>
+                        <td>
+                            {% if student.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'student_detail' student.id %}" class="btn btn-sm btn-info">View</a>
+                            <a href="{% url 'student_update' student.id %}" class="btn btn-sm btn-warning">Edit</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if class_filter %}&class={{ class_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <p>No students found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

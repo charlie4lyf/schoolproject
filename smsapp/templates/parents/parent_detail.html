@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 100px; height: 100px; font-size: 2.5rem;">
+                        {{ parent.user.first_name|first }}
+                    </div>
+                    <h4>{{ parent.user.get_full_name }}</h4>
+                    <p class="text-muted">{{ parent.user.email }}</p>
+                    <p>{{ parent.user.phone }}</p>
+                    <p>{{parent.user.username}}</p>
+                    <hr>
+                    <div class="text-left">
+                        <p><strong>Occupation:</strong> {{ parent.occupation }}</p>
+                        <p><strong>Address:</strong> {{ parent.address }}</p>
+                    </div>
+                    <a href="{% url 'parent_update' parent.pk %}" class="btn btn-primary btn-block mt-3">Edit Profile</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Linked Children</h6>
+                    <a href="{% url 'link_student' parent.pk %}" class="btn btn-sm btn-success">
+                        <i class="fas fa-plus"></i> Link Student
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Class</th>
+                                    <th>Relationship</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in links %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'student_detail' link.student.pk %}">
+                                            {{ link.student.user.get_full_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ link.student.current_class.name }}</td>
+                                    <td>
+                                        {{ link.get_relationship_display }}
+                                        {% if link.is_primary_contact %}
+                                            <span class="badge bg-success">Primary</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="{% url 'unlink_student' link.pk %}" method="post" onsubmit="return confirm('Unlink this student?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-sm">Unlink</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center">No children linked yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Settings Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">System Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">Academic Years</h5>
+                                    <p class="card-text">Manage academic years, set active year, and configure school calendar.</p>
+                                    <a href="{% url 'academic_year_list' %}" class="btn btn-primary">Manage Years</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chalkboard-teacher fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Terms</h5>
+                                    <p class="card-text">Configure school terms, set active term, and manage term dates.</p>
+                                    <a href="{% url 'term_list' %}" class="btn btn-success">Manage Terms</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-book fa-3x text-info mb-3"></i>
+                                    <h5 class="card-title">Subjects</h5>
+                                    <p class="card-text">Manage school subjects, codes, and descriptions.</p>
+                                    <a href="{% url 'subject_list' %}" class="btn btn-info">Manage Subjects</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-line fa-3x text-warning mb-3"></i>
+                                    <h5 class="card-title">Grading Scale</h5>
+                                    <p class="card-text">Define grade boundaries and letter grades for performance evaluation.</p>
+                                    <a href="{% url 'grading_scale' %}" class="btn btn-warning">Manage Grades</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

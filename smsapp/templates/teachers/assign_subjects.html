@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Assign New Subject</h6>
+                </div>
+                <div class="card-body">
+                    <p>Assigning for: <strong>{{ teacher.user.get_full_name }}</strong></p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label>Academic Year</label>
+                            {{ form.academic_year }}
+                        </div>
+                        <div class="mb-3">
+                            <label>Class</label>
+                            {{ form.class_assigned }}
+                        </div>
+                        <div class="mb-3">
+                            <label>Subject</label>
+                            {{ form.subject }}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Assign</button>
+                    </form>
+                </div>
+            </div>
+            <a href="{% url 'teacher_detail' teacher.pk %}" class="btn btn-secondary w-100 mb-3">Back to Profile</a>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Current Assignments</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Subject</th>
+                                <th>Year</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assignment in current_assignments %}
+                            <tr>
+                                <td>{{ assignment.class_assigned.name }}</td>
+                                <td>{{ assignment.subject.name }}</td>
+                                <td>{{ assignment.academic_year.name }}</td>
+                                <td>
+                                    <form action="{% url 'delete_assignment' assignment.pk %}" method="post" onsubmit="return confirm('Are you sure you want to remove this assignment?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No active assignments.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
