@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,9 +25,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-i8mc3yw_etoa*(g27^16m%9egm9#*(l@#r4dc%f)h!vrb-4k0%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
 
 
 # Application definition
@@ -151,25 +152,3 @@ MESSAGE_TAGS = {
     messages.ERROR: 'danger',  # Bootstrap uses 'danger' instead of 'error'
 }
 
-# Production Security Settings
-if not DEBUG:
-    # HTTPS Settings
-    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
-    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    
-    # Cookie Security
-    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
-    CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
-    
-    # Other Security
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
-    X_FRAME_OPTIONS = 'DENY'
-    
-    # Use PostgreSQL in production
-    import dj_database_url
-    DATABASES['default'] = dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3')
-    )
