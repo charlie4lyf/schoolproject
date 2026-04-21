@@ -81,7 +81,7 @@ urlpatterns = [
     path('profile/change-password/', views.change_password, name='change_password'),
 
     # Phase 11: Teacher Management (consolidated)
-    path('teachers/add/', views.teacher_create, name='teacher_create'),
+    path('teachers/add/', views.teacher_create, name='teacher_add'),
     path('teachers/<int:pk>/', views.teacher_detail, name='teacher_detail'),
     path('teachers/<int:pk>/edit/', views.teacher_update, name='teacher_update'),
     path('teachers/<int:pk>/delete/', views.teacher_delete, name='teacher_delete'),

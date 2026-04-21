@@ -87,7 +87,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Grade Overview</h5>
-        {% if current_term and not current_term.is_finalized %}
+        {% if current_term and current_term.is_active %}
         <button type="button" class="btn btn-sm btn-success" onclick="calculateTermAverages()">Calculate Term Averages</button>
         {% endif %}
     </div>

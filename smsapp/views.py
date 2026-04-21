@@ -139,10 +139,13 @@ def teacher_dashboard(request):
     ).select_related('class_assigned', 'subject', 'academic_year')
 
     today = timezone.now().date()
-    attendance_pending = [
-        a for a in teaching_assignments
-        if not Attendance.objects.filter(class_assigned=a.class_assigned, date=today).exists()
-    ]
+    marked_class_ids = set(
+        Attendance.objects.filter(
+            class_assigned_id__in=teaching_assignments.values_list('class_assigned_id', flat=True),
+            date=today,
+        ).values_list('class_assigned_id', flat=True)
+    )
+    attendance_pending = [a for a in teaching_assignments if a.class_assigned_id not in marked_class_ids]
 
     context = {
         'teacher': teacher,
@@ -203,32 +206,55 @@ def parent_dashboard(request):
 
     current_term = Term.objects.filter(is_active=True).first()
     children = []
+    student_ids = [link.student_id for link in parent_student_links]
+
+    attendance_stats = {
+        row['student_id']: row
+        for row in Attendance.objects.filter(student_id__in=student_ids).values('student_id').annotate(
+            total_days=Count('id'),
+            present_days=Count('id', filter=Q(status__in=['present', 'late'])),
+        )
+    }
+    recent_attendance_rows = Attendance.objects.filter(
+        student_id__in=student_ids
+    ).values('student_id', 'status').order_by('student_id', '-date')
+    consecutive_absences_by_student = {}
+    streak_closed = set()
+    for row in recent_attendance_rows:
+        student_id = row['student_id']
+        if student_id in streak_closed:
+            continue
+        if row['status'] == 'absent':
+            consecutive_absences_by_student[student_id] = consecutive_absences_by_student.get(student_id, 0) + 1
+        else:
+            consecutive_absences_by_student[student_id] = consecutive_absences_by_student.get(student_id, 0)
+            streak_closed.add(student_id)
+    grade_rows = TermGradeSummary.objects.none()
+    if current_term:
+        grade_rows = TermGradeSummary.objects.filter(
+            student_id__in=student_ids,
+            term=current_term,
+        ).select_related('subject', 'student').order_by('student_id', '-average_score')
+    grades_by_student = defaultdict(list)
+    for grade in grade_rows:
+        if len(grades_by_student[grade.student_id]) < 5:
+            grades_by_student[grade.student_id].append(grade)
 
     for link in parent_student_links:
         student = link.student
-        total_days = Attendance.objects.filter(student=student).count()
+        stats = attendance_stats.get(student.id, {})
+        total_days = stats.get('total_days', 0)
         if total_days > 0:
-            present_days = Attendance.objects.filter(
-                student=student, status__in=['present', 'late']
-            ).count()
+            present_days = stats.get('present_days', 0)
             absent_days = total_days - present_days
             attendance_percentage = round((present_days / total_days) * 100, 1)
         else:
             present_days = absent_days = 0
             attendance_percentage = 0
 
-        consecutive_absences = 0
-        for att in Attendance.objects.filter(student=student).order_by('-date')[:10]:
-            if att.status == 'absent':
-                consecutive_absences += 1
-            else:
-                break
+        consecutive_absences = consecutive_absences_by_student.get(student.id, 0)
 
-        grades = []
-        if current_term:
-            grades = TermGradeSummary.objects.filter(
-                student=student, term=current_term
-            ).select_related('subject')[:5]
+        grades = grades_by_student.get(student.id, [])
 
         children.append({
             'student': student,
@@ -1044,8 +1070,10 @@ def mark_attendance(request, class_id):
     can_edit = selected_date >= today or request.user.role == 'admin'
 
     students = Student.objects.filter(
-        current_class=class_obj, is_active=True
-    ).select_related('user').order_by('user__last_name', 'user__first_name')
+        enrollments__class_assigned=class_obj,
+        enrollments__is_active=True,
+        is_active=True,
+    ).select_related('user').distinct().order_by('user__last_name', 'user__first_name')
 
     attendance_records = Attendance.objects.filter(class_assigned=class_obj, date=selected_date)
     existing_attendance = {
@@ -1100,6 +1128,12 @@ def mark_attendance(request, class_id):
 
 @login_required
 def attendance_history(request):
+    if request.user.role not in ['admin', 'teacher']:
+        messages.error(request, 'You do not have permission to view this attendance page.')
+        if request.user.role == 'student':
+            return redirect('student_attendance_report', student_id=request.user.student_profile.id)
+        return redirect('parent_dashboard')
+
     selected_class = request.GET.get('class', '')
     start_date = datetime.strptime(
         request.GET.get('start_date', (timezone.now().date() - timedelta(days=30)).isoformat()),
@@ -1155,6 +1189,12 @@ def attendance_history(request):
 
 @login_required
 def attendance_by_date(request):
+    if request.user.role not in ['admin', 'teacher']:
+        messages.error(request, 'You do not have permission to view this attendance page.')
+        if request.user.role == 'student':
+            return redirect('student_attendance_report', student_id=request.user.student_profile.id)
+        return redirect('parent_dashboard')
+
     selected_date = datetime.strptime(
         request.GET.get('date', timezone.now().date().isoformat()), '%Y-%m-%d'
     ).date()
@@ -1365,6 +1405,17 @@ def create_assessment(request):
     if request.method == 'POST':
         form = AssessmentForm(request.POST)
         if form.is_valid():
+            if request.user.role == 'teacher':
+                teacher = request.user.teacher_profile
+                allowed = ClassSubjectTeacher.objects.filter(
+                    teacher=teacher,
+                    class_assigned=form.cleaned_data['class_assigned'],
+                    subject=form.cleaned_data['subject'],
+                ).exists()
+                if not allowed:
+                    messages.error(request, 'You can only create assessments for your assigned class-subject combinations.')
+                    return redirect('create_assessment')
+
             assessment = Assessment.objects.create(
                 name=form.cleaned_data['name'],
                 term=form.cleaned_data['term'],
@@ -1475,8 +1526,10 @@ def view_gradebook(request, class_id, subject_id):
         a.grades_count = Grade.objects.filter(assessment=a).count()
 
     students = Student.objects.filter(
-        current_class=class_obj, is_active=True
-    ).select_related('user').order_by('user__last_name', 'user__first_name')
+        enrollments__class_assigned=class_obj,
+        enrollments__is_active=True,
+        is_active=True,
+    ).select_related('user').distinct().order_by('user__last_name', 'user__first_name')
 
     grades_data = {}
     for student in students:
@@ -1532,8 +1585,10 @@ def enter_grades(request, assessment_id):
         return redirect('dashboard')
 
     students = Student.objects.filter(
-        current_class=assessment.class_assigned, is_active=True
-    ).select_related('user').order_by('user__last_name', 'user__first_name')
+        enrollments__class_assigned=assessment.class_assigned,
+        enrollments__is_active=True,
+        is_active=True,
+    ).select_related('user').distinct().order_by('user__last_name', 'user__first_name')
 
     existing_grades = {
         g.student_id: g
@@ -1745,9 +1800,11 @@ def generate_single_report_card_pdf(request, student, term):
     elements.append(Paragraph(f"{term.name} — {term.academic_year.name}", styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
 
+    student_class_name = student.current_class.name if student.current_class else 'N/A'
+
     student_table = Table([
         ['Student Name:', student.user.get_full_name(), 'Student ID:', student.student_id_number],
-        ['Class:', student.current_class.name, 'Academic Year:', term.academic_year.name],
+        ['Class:', student_class_name, 'Academic Year:', term.academic_year.name],
         ['Term:', term.name, 'Report Date:', timezone.now().date().strftime('%Y-%m-%d')],
     ], colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 2*inch])
     student_table.setStyle(TableStyle([
@@ -1968,7 +2025,7 @@ def grade_reports(request):
     selected_subject_name = ''
     if selected_subject:
         top_students = grade_summaries.select_related(
-            'student__user', 'student__current_class'
+            'student__user'
         ).order_by('-average_score')[:10]
         selected_subject_name = get_object_or_404(Subject, pk=selected_subject).name
 
@@ -2233,10 +2290,10 @@ def assignment_list(request):
 
     elif user.role == 'parent':
         parent   = user.parent_profile
-        # FIX: related_name for Student.current_class is 'current_students'
         children = ParentStudent.objects.filter(parent=parent).values_list('student', flat=True)
         assignments = Assignment.objects.filter(
-            class_assigned__current_students__in=children
+            class_assigned__enrollments__student_id__in=children,
+            class_assigned__enrollments__is_active=True,
         ).distinct().select_related('class_assigned', 'subject').order_by('-due_date')
 
     else:
@@ -2275,9 +2332,37 @@ def assignment_detail(request, pk):
     assignment = get_object_or_404(Assignment, pk=pk)
     submission = None
     if request.user.role == 'student':
+        student = request.user.student_profile
+        is_enrolled = StudentEnrollment.objects.filter(
+            student=student,
+            class_assigned=assignment.class_assigned,
+            is_active=True,
+        ).exists()
+        if not is_enrolled:
+            messages.error(request, 'Access denied.')
+            return redirect('assignment_list')
         submission = AssignmentSubmission.objects.filter(
-            assignment=assignment, student=request.user.student_profile
+            assignment=assignment, student=student
         ).first()
+    elif request.user.role == 'teacher':
+        if assignment.teacher != request.user.teacher_profile:
+            messages.error(request, 'Access denied.')
+            return redirect('assignment_list')
+    elif request.user.role == 'parent':
+        child_ids = ParentStudent.objects.filter(
+            parent=request.user.parent_profile
+        ).values_list('student_id', flat=True)
+        has_child_in_class = StudentEnrollment.objects.filter(
+            student_id__in=child_ids,
+            class_assigned=assignment.class_assigned,
+            is_active=True,
+        ).exists()
+        if not has_child_in_class:
+            messages.error(request, 'Access denied.')
+            return redirect('assignment_list')
+    elif request.user.role != 'admin':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
 
     return render(request, 'assignments/assignment_detail.html', {
         'assignment': assignment,
@@ -2332,8 +2417,10 @@ def view_submissions(request, pk):
     ).select_related('student__user')
     submitted_ids  = submissions.values_list('student_id', flat=True)
     pending_students = Student.objects.filter(
-        current_class=assignment.class_assigned
-    ).exclude(id__in=submitted_ids)
+        enrollments__class_assigned=assignment.class_assigned,
+        enrollments__is_active=True,
+        is_active=True,
+    ).exclude(id__in=submitted_ids).distinct()
 
     return render(request, 'assignments/view_submissions.html', {
         'assignment': assignment,
@@ -2346,6 +2433,9 @@ def view_submissions(request, pk):
 @teacher_required
 def grade_submission(request, pk):
     submission = get_object_or_404(AssignmentSubmission, pk=pk)
+    if submission.assignment.teacher != request.user.teacher_profile:
+        messages.error(request, 'Access denied.')
+        return redirect('assignment_list')
 
     if request.method == 'POST':
         form = GradingForm(request.POST, instance=submission)
@@ -2451,9 +2541,7 @@ def parent_update(request, pk):
 @admin_required
 def parent_detail(request, pk):
     parent = get_object_or_404(Parent, pk=pk)
-    links  = ParentStudent.objects.filter(parent=parent).select_related(
-        'student__user', 'student__current_class'
-    )
+    links  = ParentStudent.objects.filter(parent=parent).select_related('student__user')
     return render(request, 'parents/parent_detail.html', {'parent': parent, 'links': links})
 
 
@@ -2485,6 +2573,9 @@ def link_student(request, pk):
 def unlink_student(request, pk):
     link      = get_object_or_404(ParentStudent, pk=pk)
     parent_id = link.parent.id
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request method.')
+        return redirect('parent_detail', pk=parent_id)
     link.delete()
     messages.success(request, 'Student unlinked successfully.')
     return redirect('parent_detail', pk=parent_id)
@@ -2762,6 +2853,9 @@ def grading_scale(request):
 @login_required
 @admin_required
 def grading_scale_delete(request, pk):
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request method.')
+        return redirect('grading_scale')
     get_object_or_404(GradingScale, pk=pk).delete()
     messages.success(request, 'Grade scale removed.')
     return redirect('grading_scale')
@@ -2804,7 +2898,8 @@ def teacher_performance_report(request):
         assignments = ClassSubjectTeacher.objects.filter(teacher=teacher)
         related_summaries = TermGradeSummary.objects.filter(
             subject__class_assignments__teacher=teacher,
-            student__current_class__subject_assignments__teacher=teacher,
+            student__enrollments__class_assigned__subject_assignments__teacher=teacher,
+            student__enrollments__is_active=True,
         ).distinct()
 
         avg_score = student_count = 0
@@ -3054,45 +3149,6 @@ def class_subject_assign(request, class_id):
         'title': f'Assign Subject to {class_obj.name}',
         'cancel_url': 'class_subject_assignment_list',
         'cancel_args': [class_id],
-    }
-    return render(request, 'settings/form_base.html', context)
-
-@login_required
-@admin_required
-def class_subject_assign(request, class_id):
-    """Assign a subject to a class with a teacher"""
-    class_obj = get_object_or_404(SchoolClass, pk=class_id)
-    
-    if request.method == 'POST':
-        form = ClassSubjectTeacherForm(request.POST)
-        if form.is_valid():
-            assignment = form.save(commit=False)
-            assignment.class_assigned = class_obj
-            
-            # Check if already exists
-            exists = ClassSubjectTeacher.objects.filter(
-                class_assigned=class_obj,
-                subject=assignment.subject,
-                academic_year=assignment.academic_year
-            ).exists()
-            
-            if exists:
-                messages.error(request, 'This subject is already assigned to this class for the selected academic year')
-            else:
-                assignment.save()
-                messages.success(request, f'Subject assigned to {class_obj.name} successfully!')
-                # FIXED: Pass the class_id argument to the redirect
-                return redirect('class_subject_assignment_list', class_id=class_obj.id)
-    else:
-        # Simple form without any custom filtering initially
-        form = ClassSubjectTeacherForm()
-    
-    context = {
-        'form': form,
-        'class_obj': class_obj,
-        'title': f'Assign Subject to {class_obj.name}',
-        'cancel_url': 'class_subject_assignment_list',
-        'cancel_args': [class_id],  # Pass the class_id for cancel button
     }
     return render(request, 'settings/form_base.html', context)
 
@@ -3380,6 +3436,7 @@ def bulk_form4_subject_enrollment(request, class_id):
             academic_year=academic_year
         ).values_list('subject_id', flat=True)
         current_enrollments[student.id] = list(enrolled)
+        student.selected_subject_ids = current_enrollments[student.id]
     
     context = {
         'class_obj': class_obj,
