@@ -207,27 +207,6 @@ class StudentEnrollment(models.Model):
 
 
 # ─────────────────────────────────────────────
-# STUDENT SUBJECT ENROLLMENT
-# ─────────────────────────────────────────────
-
-class StudentSubjectEnrollment(models.Model):
-    student       = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='subject_enrollments')
-    subject       = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='student_enrollments')
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='subject_enrollments')
-    is_elective_choice          = models.BooleanField(default=False)
-    carried_from_previous_year  = models.BooleanField(default=False)
-    enrolled_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table        = 'student_subject_enrollments'
-        unique_together = ['student', 'subject', 'academic_year']
-        ordering        = ['student', 'subject']
-
-    def __str__(self):
-        return f"{self.student} — {self.subject} ({self.academic_year})"
-
-
-# ─────────────────────────────────────────────
 # TEACHER
 # ─────────────────────────────────────────────
 
@@ -397,7 +376,7 @@ class ParentStudent(models.Model):
 class ClassSubjectTeacher(models.Model):
     class_assigned = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='subject_assignments')
     subject        = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='class_assignments')
-    teacher        = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='teaching_assignments')
+    teacher        = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='teaching_assignments')
     academic_year  = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='teaching_assignments')
     created_at     = models.DateTimeField(auto_now_add=True)
 
@@ -407,7 +386,8 @@ class ClassSubjectTeacher(models.Model):
         ordering        = ['class_assigned', 'subject']
 
     def __str__(self):
-        return f"{self.teacher} — {self.subject} — {self.class_assigned}"
+        teacher_name = self.teacher.user.get_full_name() if self.teacher else 'Unassigned'
+        return f"{teacher_name} — {self.subject} — {self.class_assigned}"
 
 
 # ─────────────────────────────────────────────
@@ -454,10 +434,6 @@ class Assessment(models.Model):
     term           = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='assessments')
     class_assigned = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='assessments')
     subject        = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='assessments')
-    weight_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
-    )
     max_score       = models.DecimalField(max_digits=5, decimal_places=2, default=100)
     assessment_date = models.DateField()
     description     = models.TextField(blank=True, null=True)
@@ -476,7 +452,7 @@ class Grade(models.Model):
     student    = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='grades')
     score      = models.DecimalField(
         max_digits=5, decimal_places=2,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+        validators=[MinValueValidator(0)]
     )
     comment    = models.TextField(blank=True, null=True)
     entered_by = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, related_name='entered_grades')
@@ -490,24 +466,6 @@ class Grade(models.Model):
 
     def __str__(self):
         return f"{self.student} — {self.assessment.name} — {self.score}"
-
-
-class TermGradeSummary(models.Model):
-    student         = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='term_summaries')
-    term            = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='grade_summaries')
-    subject         = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='term_summaries')
-    average_score   = models.DecimalField(max_digits=5, decimal_places=2)
-    grade_letter    = models.CharField(max_length=2)
-    teacher_comment = models.TextField(blank=True, null=True)
-    calculated_at   = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table        = 'term_grade_summaries'
-        unique_together = ['student', 'term', 'subject']
-        ordering        = ['term', 'student', 'subject']
-
-    def __str__(self):
-        return f"{self.student} — {self.subject} — {self.term} — {self.average_score}%"
 
 
 class ReportCard(models.Model):

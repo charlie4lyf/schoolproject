@@ -73,7 +73,6 @@
                         <th>Assessment</th>
                         <th>Date</th>
                         <th>Score</th>
-                        <th>Weight</th>
                         <th>Comment</th>
                     </tr>
                 </thead>
@@ -83,7 +82,6 @@
                         <td>{{ grade.assessment.name }}</td>
                         <td>{{ grade.assessment.assessment_date }}</td>
                         <td>{{ grade.score }}%</td>
-                        <td>{{ grade.assessment.weight_percentage }}%</td>
                         <td>{{ grade.comment|default:"-" }}</td>
                     </tr>
                     {% endfor %}

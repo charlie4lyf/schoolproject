@@ -20,8 +20,7 @@ from smsapp.models import (
     User, AcademicYear, Term, Subject, GradeSubjectConfig,
     SchoolClass, Student, Teacher, Parent, StudentEnrollment,
     ClassSubjectTeacher, Attendance, Assessment, Grade,
-    Assignment, AssignmentSubmission, GradingScale, ParentStudent,
-    StudentSubjectEnrollment
+    Assignment, AssignmentSubmission, GradingScale, ParentStudent
 )
 
 
@@ -77,7 +76,6 @@ class Command(BaseCommand):
             self.create_parents()
             self.create_teacher_assignments()
             self.create_student_enrollments()
-            self.create_subject_enrollments()
             self.create_attendance_records()
             self.create_assessments_and_grades()
             self.create_assignments_and_submissions()
@@ -89,7 +87,7 @@ class Command(BaseCommand):
         """Delete all existing data in reverse order of dependencies."""
         models_to_delete = [
             AssignmentSubmission, Assignment, Grade, Assessment,
-            Attendance, ClassSubjectTeacher, StudentSubjectEnrollment,
+            Attendance, ClassSubjectTeacher,
             StudentEnrollment, ParentStudent, Parent, Student, Teacher,
             SchoolClass, GradeSubjectConfig, Subject, Term, AcademicYear,
             GradingScale,
@@ -302,19 +300,19 @@ class Command(BaseCommand):
             self.teachers.append(teacher)
 
     def create_classes(self):
-        """Create school classes."""
+        """Create school classes with auto-populated subjects from GradeSubjectConfig."""
         self.stdout.write('Creating classes...')
-        
+
         grade_levels = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6']
         sections = ['A', 'B', 'C']
-        
+
         self.classes = []
         for grade in grade_levels:
             for section in sections:
                 class_name = f"{self._grade_to_name(grade)} {section}"
                 class_teacher = random.choice(self.teachers) if random.random() > 0.3 else None
-                
-                school_class, _ = SchoolClass.objects.get_or_create(
+
+                school_class, created = SchoolClass.objects.get_or_create(
                     name=class_name,
                     academic_year=self.academic_year,
                     defaults={
@@ -325,6 +323,17 @@ class Command(BaseCommand):
                     }
                 )
                 self.classes.append(school_class)
+
+                # Auto-populate ALL subjects from GradeSubjectConfig for this grade
+                if created:
+                    configs = GradeSubjectConfig.objects.filter(grade_level=grade)
+                    for config in configs:
+                        ClassSubjectTeacher.objects.get_or_create(
+                            class_assigned=school_class,
+                            subject=config.subject,
+                            academic_year=self.academic_year,
+                            defaults={'teacher': None}
+                        )
 
     def _grade_to_name(self, grade):
         """Convert grade code to display name."""
@@ -445,30 +454,27 @@ class Command(BaseCommand):
                 )
 
     def create_teacher_assignments(self):
-        """Assign teachers to classes and subjects."""
-        self.stdout.write('Creating teacher assignments...')
-        
+        """Assign teachers to existing class-subject records (all subjects already exist)."""
+        self.stdout.write('Assigning teachers to class subjects...')
+
         for school_class in self.classes:
-            # Get subjects for this grade level
-            subject_configs = GradeSubjectConfig.objects.filter(
-                grade_level=school_class.grade_level,
-                is_compulsory=True
+            # Get all subjects for this class (already auto-populated)
+            subject_assignments = ClassSubjectTeacher.objects.filter(
+                class_assigned=school_class,
+                academic_year=self.academic_year,
+                teacher__isnull=True  # Only assign to unassigned subjects
             )
-            
-            # Assign 3-6 subjects per class
-            selected_configs = random.sample(
-                list(subject_configs),
-                min(random.randint(3, 6), subject_configs.count())
-            )
-            
-            for config in selected_configs:
-                teacher = random.choice(self.teachers)
-                ClassSubjectTeacher.objects.get_or_create(
-                    class_assigned=school_class,
-                    subject=config.subject,
-                    academic_year=self.academic_year,
-                    defaults={'teacher': teacher}
-                )
+
+            # Assign teachers to 70% of subjects (realistic scenario)
+            if subject_assignments.exists():
+                assignments_list = list(subject_assignments)
+                num_to_assign = int(len(assignments_list) * 0.7)
+                selected = random.sample(assignments_list, min(num_to_assign, len(assignments_list)))
+
+                for assignment in selected:
+                    teacher = random.choice(self.teachers)
+                    assignment.teacher = teacher
+                    assignment.save()
 
     def create_student_enrollments(self):
         """Enroll students in classes."""
@@ -526,78 +532,6 @@ class Command(BaseCommand):
                     }
                 )
 
-    def create_subject_enrollments(self):
-        """Create subject enrollments for students based on grade level."""
-        self.stdout.write('Creating subject enrollments...')
-        
-        # Get all active student enrollments
-        student_enrollments = StudentEnrollment.objects.filter(
-            is_active=True,
-            academic_year=self.academic_year
-        ).select_related('student', 'class_assigned')
-        
-        form4_students = []
-        form5_students = []
-        other_students = []
-        
-        # Separate students by grade level
-        for enrollment in student_enrollments:
-            grade_level = enrollment.class_assigned.grade_level
-            if grade_level == 'F4':
-                form4_students.append(enrollment)
-            elif grade_level == 'F5':
-                form5_students.append(enrollment)
-            else:
-                other_students.append(enrollment)
-        
-        # For Form 4 and Form 5: DO NOT auto-enroll any subjects
-        # These students must have subjects manually assigned by admin
-        if form4_students:
-            self.stdout.write(f'  Skipping auto-enrollment for {len(form4_students)} Form 4 students (manual assignment required)')
-        if form5_students:
-            self.stdout.write(f'  Skipping auto-enrollment for {len(form5_students)} Form 5 students (manual assignment required)')
-        
-        # For other grades: Auto-enroll compulsory subjects + some electives
-        for enrollment in other_students:
-            student = enrollment.student
-            grade_level = enrollment.class_assigned.grade_level
-            
-            # Get compulsory subjects for this grade
-            compulsory_configs = GradeSubjectConfig.objects.filter(
-                grade_level=grade_level,
-                is_compulsory=True
-            )
-            
-            # Get elective subjects for this grade
-            elective_configs = GradeSubjectConfig.objects.filter(
-                grade_level=grade_level,
-                is_elective=True
-            )
-            
-            # Enroll in all compulsory subjects
-            for config in compulsory_configs:
-                StudentSubjectEnrollment.objects.get_or_create(
-                    student=student,
-                    subject=config.subject,
-                    academic_year=self.academic_year,
-                    defaults={'is_elective_choice': False}
-                )
-            
-            # Enroll in some elective subjects (random selection)
-            if elective_configs.exists():
-                num_electives = min(random.randint(2, 4), elective_configs.count())
-                selected_electives = random.sample(list(elective_configs), num_electives)
-                
-                for config in selected_electives:
-                    StudentSubjectEnrollment.objects.get_or_create(
-                        student=student,
-                        subject=config.subject,
-                        academic_year=self.academic_year,
-                        defaults={'is_elective_choice': True}
-                    )
-        
-        self.stdout.write(f'  Created subject enrollments for {len(other_students)} students (G1-F3, F6)')
-
     def create_attendance_records(self):
         """Create attendance records for the current term."""
         self.stdout.write('Creating attendance records...')
@@ -634,9 +568,12 @@ class Command(BaseCommand):
     def create_assessments_and_grades(self):
         """Create assessments and grades."""
         self.stdout.write('Creating assessments and grades...')
-        
-        # Get all class-subject-teacher assignments
-        assignments = ClassSubjectTeacher.objects.filter(academic_year=self.academic_year)
+
+        # Get class-subject-teacher assignments WITH teachers only
+        assignments = ClassSubjectTeacher.objects.filter(
+            academic_year=self.academic_year,
+            teacher__isnull=False
+        ).select_related('teacher')
         
         assessment_types = ['Test 1', 'Test 2', 'Mid-term Exam', 'End of Term Exam', 'Assignment', 'Quiz']
         
@@ -651,7 +588,6 @@ class Command(BaseCommand):
                     class_assigned=assignment.class_assigned,
                     subject=assignment.subject,
                     defaults={
-                        'weight_percentage': random.choice([10, 15, 20, 25, 30]),
                         'max_score': 100,
                         'assessment_date': self.current_term.start_date + timedelta(days=random.randint(7, 60)),
                         'description': f'Assessment for {assignment.subject.name}',
@@ -685,15 +621,18 @@ class Command(BaseCommand):
     def create_assignments_and_submissions(self):
         """Create assignments and submissions."""
         self.stdout.write('Creating assignments and submissions...')
-        
-        # Get class-subject assignments
-        class_subjects = ClassSubjectTeacher.objects.filter(academic_year=self.academic_year)
-        
+
+        # Get class-subject assignments WITH teachers only
+        class_subjects = ClassSubjectTeacher.objects.filter(
+            academic_year=self.academic_year,
+            teacher__isnull=False
+        ).select_related('teacher')
+
         for cs in class_subjects[:15]:  # Limit for performance
             # Create 1-3 assignments per subject
             for i in range(random.randint(1, 3)):
                 assignment_title = f"{cs.subject.name} Assignment {i+1}"
-                
+
                 assignment, _ = Assignment.objects.get_or_create(
                     title=assignment_title,
                     class_assigned=cs.class_assigned,
@@ -749,16 +688,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('DUMMY DATA SUMMARY'))
         self.stdout.write(self.style.SUCCESS('='*50))
         
-        # Count Form 4 and Form 5 students who need manual subject assignment
-        form4_count = StudentEnrollment.objects.filter(
-            class_assigned__grade_level='F4',
-            is_active=True
-        ).count()
-        form5_count = StudentEnrollment.objects.filter(
-            class_assigned__grade_level='F5',
-            is_active=True
-        ).count()
-        
         models_count = [
             ('Users', User.objects.filter(is_superuser=False).count()),
             ('Teachers', Teacher.objects.count()),
@@ -769,7 +698,6 @@ class Command(BaseCommand):
             ('Subjects', Subject.objects.count()),
             ('Classes', SchoolClass.objects.count()),
             ('Student Enrollments', StudentEnrollment.objects.count()),
-            ('Subject Enrollments', StudentSubjectEnrollment.objects.count()),
             ('Teacher Assignments', ClassSubjectTeacher.objects.count()),
             ('Attendance Records', Attendance.objects.count()),
             ('Assessments', Assessment.objects.count()),
@@ -782,16 +710,6 @@ class Command(BaseCommand):
             self.stdout.write(f'  {name:<25}: {count:>5}')
         
         self.stdout.write(self.style.SUCCESS('='*50))
-        
-        # Form 4/5 Manual Assignment Notice
-        if form4_count > 0 or form5_count > 0:
-            self.stdout.write(self.style.WARNING('\n⚠️  MANUAL SUBJECT ASSIGNMENT REQUIRED:'))
-            if form4_count > 0:
-                self.stdout.write(self.style.WARNING(f'   - {form4_count} Form 4 students need subjects assigned (10 subjects each)'))
-            if form5_count > 0:
-                self.stdout.write(self.style.WARNING(f'   - {form5_count} Form 5 students need subjects assigned (3 subjects each)'))
-            self.stdout.write(self.style.WARNING('   Use the "Manage Subjects" button in student detail pages to assign subjects.'))
-            self.stdout.write(self.style.SUCCESS('='*50))
         
         self.stdout.write(self.style.SUCCESS('\nLogin Credentials:'))
         self.stdout.write('  Admin:    username=admin,      password=admin123')

@@ -31,7 +31,13 @@
                                 <tr>
                                     <td><strong>{{ assignment.subject.name }}</strong></td>
                                     <td><span class="badge bg-info">{{ assignment.subject.code }}</span></td>
-                                    <td>{{ assignment.teacher.user.get_full_name }}</td>
+                                    <td>
+                                        {% if assignment.teacher %}
+                                            {{ assignment.teacher.user.get_full_name }}
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">No Teacher Assigned</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ assignment.academic_year.name }}</td>
                                     <td>
                                         <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ assignment.id }}">

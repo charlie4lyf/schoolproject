@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Grade Submission</h1>
+        <a href="{% url 'view_submissions' submission.assignment.id %}" class="btn btn-secondary">Back</a>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                {{ submission.student.user.get_full_name }} - {{ submission.assignment.title }}
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">
+                <strong>Submitted:</strong> {{ submission.submitted_at|date:"M d, Y H:i" }}
+                {% if submission.is_late %}
+                <span class="badge bg-danger ms-2">Late</span>
+                {% endif %}
+            </p>
+
+            {% if submission.submission_file %}
+            <p>
+                <a href="{{ submission.submission_file.url }}" target="_blank" class="btn btn-info btn-sm">Download Submission</a>
+            </p>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-success">Save Grade</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

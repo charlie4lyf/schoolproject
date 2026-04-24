@@ -12,9 +12,9 @@
                 </div>
                 <div class="card-body">
                     {% for subject in subject_performance %}
-                    <h4 class="small font-weight-bold">{{ subject.name }} <span class="float-right">{{ subject.avg_score|floatform:1 }}%</span></h4>
+                    <h4 class="small font-weight-bold">{{ subject.name }} <span class="float-right">{{ subject.avg_score|floatformat:1 }}%</span></h4>
                     <div class="progress mb-4">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ subject.avg_score|floatform:0 }}%"></div>
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ subject.avg_score|floatformat:0 }}%"></div>
                     </div>
                     {% empty %}
                     <p class="text-muted">No data available.</p>
@@ -44,7 +44,7 @@
                                     <td>
                                         {% if cls.avg_score %}
                                             <span class="badge {% if cls.avg_score >= 80 %}bg-success{% elif cls.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
-                                                {{ cls.avg_score|floatform:1 }}%
+                                                {{ cls.avg_score|floatformat:1 }}%
                                             </span>
                                         {% else %}
                                             <span class="text-muted">N/A</span>

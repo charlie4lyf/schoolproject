@@ -81,7 +81,7 @@ urlpatterns = [
     path('profile/change-password/', views.change_password, name='change_password'),
 
     # Phase 11: Teacher Management (consolidated)
-    path('teachers/add/', views.teacher_create, name='teacher_create'),
+    path('teachers/add/', views.teacher_create, name='teacher_add'),
     path('teachers/<int:pk>/', views.teacher_detail, name='teacher_detail'),
     path('teachers/<int:pk>/edit/', views.teacher_update, name='teacher_update'),
     path('teachers/<int:pk>/delete/', views.teacher_delete, name='teacher_delete'),
@@ -146,13 +146,10 @@ urlpatterns = [
     path('classes/<int:class_id>/subjects/', views.class_subject_assignment_list, name='class_subject_assignment_list'),
     path('classes/<int:class_id>/subjects/assign/', views.class_subject_assign, name='class_subject_assign'),
     path('classes/subjects/<int:assignment_id>/remove/', views.class_subject_remove, name='class_subject_remove'),
-    
-    # Student Subject Enrollment
-    path('student/subjects/', views.student_subjects_view, name='student_subjects_view'),
-    path('students/<int:student_id>/subjects/', views.student_subjects_view, name='student_subjects_view_admin'),
-    path('students/<int:student_id>/subjects/manage/', views.admin_subject_enrollment, name='admin_subject_enrollment'),
-    path('classes/<int:class_id>/bulk-enroll/', views.bulk_form4_subject_enrollment, name='bulk_subject_enrollment'),
 
+    # Bulk Grade-Level Teacher Assignment
+    path('settings/bulk-teacher-assignment/', views.bulk_grade_teacher_assignment, name='bulk_grade_teacher_assignment'),
+    
     # Parent Grades View
     path('parent/grades/', views.parent_grades_view, name='parent_grades'),
 

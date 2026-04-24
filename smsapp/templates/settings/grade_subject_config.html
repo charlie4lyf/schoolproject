@@ -10,6 +10,9 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Subject Configuration by Grade Level</h5>
+                    <a href="{% url 'bulk_grade_teacher_assignment' %}" class="btn btn-sm btn-success">
+                        <i class="bi bi-person-badge-fill me-1"></i> Bulk Teacher Assignment
+                    </a>
                 </div>
                 <div class="card-body">
                     {% for grade_level, configs in grouped_configs.items %}

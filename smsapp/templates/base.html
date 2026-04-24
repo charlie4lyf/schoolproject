@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}EduManage System{% endblock %}</title>
+    <title>{% block title %} Shanduko Academic System{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -310,7 +310,7 @@
     <!-- SIDEBAR -->
     <div id="sidebar-wrapper">
         <div class="sidebar-heading">
-            <i class="bi bi-mortarboard-fill"></i> EduManage
+            <i class="bi bi-mortarboard-fill"></i>Shanduko Academic System
         </div>
 
         <div class="sidebar-nav">
@@ -368,21 +368,21 @@
                 <a href="{% url 'attendance_history' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-calendar-check"></i> Attendance
                 </a>
-                <a href="{% url 'assignment_list' %}" class="list-group-item list-group-item-action">
+                <!-- <a href="{% url 'assignment_list' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-file-earmark-text"></i> Assignments
                 </a>
                 <a href="{% url 'create_assessment' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-clipboard2-check"></i> Assessments
-                </a>
+                </a> -->
 
                 <!-- Grade Management -->
-                <div class="sidebar-heading-text">Grades</div>
+                <!-- <div class="sidebar-heading-text">Grades</div>
                 <a href="{% url 'view_gradebook' 0 0 %}" class="list-group-item list-group-item-action" onclick="return false;">
                     <i class="bi bi-journal-check"></i> Gradebook
-                </a>
+                </a> -->
 
                 <!-- Reports & Analytics -->
-                <div class="sidebar-heading-text">Reports & Analytics</div>
+                <!-- <div class="sidebar-heading-text">Reports & Analytics</div>
                 <a href="{% url 'reports_menu' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-folder2-open"></i> Reports Center
                 </a>
@@ -403,7 +403,7 @@
                 </a>
                 <a href="{% url 'export_grade_report' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-download"></i> Export Grade Report
-                </a>
+                </a> -->
 
                 <!-- Configuration -->
                 <div class="sidebar-heading-text">Configuration</div>
@@ -440,14 +440,9 @@
                 <a href="{% url 'create_assessment' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-clipboard2-plus"></i> Create Assessment
                 </a>
-                <a href="{% url 'view_gradebook' 0 0 %}" class="list-group-item list-group-item-action" onclick="return false;">
+                <!-- <a href="{% url 'view_gradebook' 0 0 %}" class="list-group-item list-group-item-action" onclick="return false;">
                     <i class="bi bi-journal-check"></i> My Gradebooks
-                </a>
-
-                <div class="sidebar-heading-text">Reports</div>
-                <a href="{% url 'teacher_performance' %}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-graph-up"></i> My Performance
-                </a>
+                </a> -->
 
             {% endif %}
 
@@ -458,13 +453,11 @@
                 <a href="{% url 'student_grades_view' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-trophy-fill"></i> My Grades
                 </a>
-                <a href="{% url 'student_subjects_view' %}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-journal-bookmark-fill"></i> Subject Enrollment
-                </a>
+
                 <a href="{% url 'assignment_list' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-pen-fill"></i> My Assignments
                 </a>
-                <a href="{% url 'attendance_history' %}" class="list-group-item list-group-item-action">
+                <a href="{% url 'student_attendance_report' user.student_profile.id %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-calendar3"></i> My Attendance
                 </a>
 
@@ -493,10 +486,6 @@
                 <a href="{% url 'assignment_list' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-file-earmark-text"></i> Children's Assignments
                 </a>
-                <a href="{% url 'attendance_history' %}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-calendar-check"></i> Children's Attendance
-                </a>
-
             {% endif %}
 
         </div>
@@ -604,7 +593,7 @@
         <!-- Footer -->
         <footer class="bg-white text-center py-3 mt-5 border-top">
             <div class="container text-muted small">
-                &copy; {% now "Y" %} EduManage. All Rights Reserved.
+                &copy; {% now "Y" %} Shanduko Academic System. All Rights Reserved.
             </div>
         </footer>
 
