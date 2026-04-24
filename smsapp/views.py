@@ -27,10 +27,11 @@ from reportlab.lib.enums import TA_CENTER
 from .models import (
     AcademicYear, Assessment, Grade, ReportCard, StudentEnrollment,
     User, Student, Teacher, Parent, SchoolClass, Subject,
-    ClassSubjectTeacher, Attendance, TermGradeSummary,
+    ClassSubjectTeacher, Attendance,
     ActivityLog, Term, ParentStudent, Assignment,
-    AssignmentSubmission, GradingScale, GradeSubjectConfig, StudentSubjectEnrollment
+    AssignmentSubmission, GradingScale, GradeSubjectConfig
 )
+from .utils import get_term_subject_mark, get_grade_letter
 from .decorators import admin_required, teacher_required, student_required, parent_required
 from .forms import (
     GRADE_CHOICES, ClassSubjectTeacherForm, StudentForm, ClassForm, TeacherAssignmentForm, TeacherForm,
@@ -39,7 +40,7 @@ from .forms import (
     AssignmentForm, StudentSubmissionForm, GradingForm,
     ParentForm, ParentStudentLinkForm, UserAdminForm, RoleChangeForm,
     AcademicYearForm, TermForm, SubjectForm, GradingScaleForm,
-    GradeSubjectConfigForm
+    GradeSubjectConfigForm, GradeLevelTeacherAssignmentForm
 )
 
 from django.db import transaction
@@ -147,13 +148,15 @@ def teacher_dashboard(request):
     )
     attendance_pending = [a for a in teaching_assignments if a.class_assigned_id not in marked_class_ids]
 
+    total_students = sum(a.class_assigned.student_count for a in teaching_assignments)  # <-- added
+
     context = {
         'teacher': teacher,
         'teaching_assignments': teaching_assignments,
         'attendance_pending': attendance_pending,
+        'total_students': total_students,  # <-- added
     }
     return render(request, 'dashboard/teacher_dashboard.html', context)
-
 
 @login_required
 @student_required
@@ -166,10 +169,21 @@ def student_dashboard(request):
 
     current_term = Term.objects.filter(is_active=True).first()
     grades = []
-    if current_term:
-        grades = TermGradeSummary.objects.filter(
-            student=student, term=current_term
-        ).select_related('subject')
+    if current_term and student.current_class:
+        subject_ids = Assessment.objects.filter(
+            term=current_term,
+            class_assigned=student.current_class,
+        ).values_list('subject_id', flat=True).distinct()
+        for subject_id in subject_ids:
+            from .models import Subject
+            subject = Subject.objects.get(pk=subject_id)
+            mark = get_term_subject_mark(student, subject, current_term)
+            if mark is not None:
+                grades.append({
+                    'subject': subject,
+                    'average_score': mark,
+                    'grade_letter': get_grade_letter(mark),
+                })
 
     total_days = Attendance.objects.filter(student=student).count()
     if total_days > 0:
@@ -229,16 +243,28 @@ def parent_dashboard(request):
         else:
             consecutive_absences_by_student[student_id] = consecutive_absences_by_student.get(student_id, 0)
             streak_closed.add(student_id)
-    grade_rows = TermGradeSummary.objects.none()
-    if current_term:
-        grade_rows = TermGradeSummary.objects.filter(
-            student_id__in=student_ids,
-            term=current_term,
-        ).select_related('subject', 'student').order_by('student_id', '-average_score')
     grades_by_student = defaultdict(list)
-    for grade in grade_rows:
-        if len(grades_by_student[grade.student_id]) < 5:
-            grades_by_student[grade.student_id].append(grade)
+    if current_term:
+        for student_id in student_ids:
+            from .models import Subject
+            student_obj = Student.objects.get(pk=student_id)
+            if student_obj.current_class:
+                subject_ids = Assessment.objects.filter(
+                    term=current_term,
+                    class_assigned=student_obj.current_class,
+                ).values_list('subject_id', flat=True).distinct()
+                subject_marks = []
+                for subject_id in subject_ids:
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student_obj, subject, current_term)
+                    if mark is not None:
+                        subject_marks.append({
+                            'subject': subject,
+                            'average_score': mark,
+                            'grade_letter': get_grade_letter(mark),
+                        })
+                subject_marks.sort(key=lambda x: x['average_score'], reverse=True)
+                grades_by_student[student_id] = subject_marks[:5]
 
     for link in parent_student_links:
         student = link.student
@@ -336,11 +362,20 @@ def student_detail(request, pk):
 
     current_term = Term.objects.filter(is_active=True).first()
     current_average = 0
-    if current_term:
-        avg = TermGradeSummary.objects.filter(
-            student=student, term=current_term
-        ).aggregate(Avg('average_score'))['average_score__avg']
-        current_average = round(avg, 1) if avg else 0
+    if current_term and student.current_class:
+        subject_ids = Assessment.objects.filter(
+            term=current_term,
+            class_assigned=student.current_class,
+        ).values_list('subject_id', flat=True).distinct()
+        marks = []
+        for subject_id in subject_ids:
+            from .models import Subject
+            subject = Subject.objects.get(pk=subject_id)
+            mark = get_term_subject_mark(student, subject, current_term)
+            if mark is not None:
+                marks.append(mark)
+        if marks:
+            current_average = round(sum(marks) / len(marks), 1)
 
     parents = ParentStudent.objects.filter(student=student).select_related('parent__user')
 
@@ -631,7 +666,17 @@ def class_create(request):
         form = ClassForm(request.POST)
         if form.is_valid():
             class_obj = form.save()
-            
+
+            # Auto-populate subjects from GradeSubjectConfig for this grade level
+            configs = GradeSubjectConfig.objects.filter(grade_level=class_obj.grade_level)
+            for config in configs:
+                ClassSubjectTeacher.objects.get_or_create(
+                    class_assigned=class_obj,
+                    subject=config.subject,
+                    academic_year=class_obj.academic_year,
+                    defaults={'teacher': None}
+                )
+
             # Log the activity
             ActivityLog.objects.create(
                 user=request.user,
@@ -640,8 +685,11 @@ def class_create(request):
                 object_id=class_obj.id,
                 description=f'Created class {class_obj.name}'
             )
-            
-            messages.success(request, f'Class {class_obj.name} created successfully!')
+
+            messages.success(
+                request,
+                f'Class {class_obj.name} created successfully! {configs.count()} subjects auto-populated from grade configuration.'
+            )
             return redirect('class_detail', pk=class_obj.id)
     else:
         form = ClassForm()
@@ -856,8 +904,9 @@ def class_subject_assignment(request, class_id):
     ).values_list('subject_id', flat=True)
     
     if request.method == 'POST':
-        # Auto-assign all compulsory subjects
-        for config in subject_configs.filter(is_compulsory=True):
+        # Auto-assign all configured subjects (compulsory + elective)
+        created_count = 0
+        for config in subject_configs:
             if config.subject.id not in assigned_subjects:
                 ClassSubjectTeacher.objects.create(
                     class_assigned=class_obj,
@@ -865,15 +914,19 @@ def class_subject_assignment(request, class_id):
                     academic_year=academic_year,
                     teacher=None  # To be assigned later
                 )
-        
-        messages.success(request, f'Compulsory subjects assigned to {class_obj.name}')
+                created_count += 1
+
+        messages.success(
+            request,
+            f'{created_count} subjects auto-assigned to {class_obj.name} from grade configuration.'
+        )
         return redirect('class_detail', pk=class_id)
     
     context = {
         'class': class_obj,
-        'compulsory_subjects': subject_configs.filter(is_compulsory=True),
+        'configured_subjects': subject_configs,
         'assigned_count': len(assigned_subjects),
-        'total_compulsory': subject_configs.filter(is_compulsory=True).count(),
+        'total_configured': subject_configs.count(),
     }
     return render(request, 'classes/class_auto_assign_subjects.html', context)
 
@@ -1010,6 +1063,19 @@ def teacher_assign_subject(request, pk):
             assignment = form.save(commit=False)
             assignment.teacher = teacher
 
+            # Validate that the subject is configured for this class's grade level
+            is_configured = GradeSubjectConfig.objects.filter(
+                grade_level=assignment.class_assigned.grade_level,
+                subject=assignment.subject
+            ).exists()
+            if not is_configured:
+                messages.error(
+                    request,
+                    f'"{assignment.subject.name}" is not configured for {assignment.class_assigned.grade_level}. '
+                    f'Add it to Grade-Subject Config first.'
+                )
+                return redirect('teacher_assign_subject', pk=pk)
+
             exists = ClassSubjectTeacher.objects.filter(
                 class_assigned=assignment.class_assigned,
                 subject=assignment.subject,
@@ -1045,6 +1111,67 @@ def delete_assignment(request, pk):
     assignment.delete()
     messages.success(request, 'Assignment removed.')
     return redirect('teacher_assign_subject', pk=teacher_id)
+
+
+@login_required
+@admin_required
+def bulk_grade_teacher_assignment(request):
+    """Assign a teacher to ALL classes of a specific grade + subject."""
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+
+    if request.method == 'POST':
+        form = GradeLevelTeacherAssignmentForm(request.POST)
+        if form.is_valid():
+            grade_level = form.cleaned_data['grade_level']
+            subject = form.cleaned_data['subject']
+            teacher = form.cleaned_data['teacher']
+            academic_year = form.cleaned_data['academic_year']
+
+            # Get all classes for this grade level and academic year
+            classes = SchoolClass.objects.filter(
+                grade_level=grade_level,
+                academic_year=academic_year
+            )
+
+            created_count = 0
+            updated_count = 0
+
+            for cls in classes:
+                assignment, created = ClassSubjectTeacher.objects.update_or_create(
+                    class_assigned=cls,
+                    subject=subject,
+                    academic_year=academic_year,
+                    defaults={'teacher': teacher}
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            messages.success(
+                request,
+                f'Assigned {teacher.user.get_full_name()} to {subject} for all {grade_level} classes. '
+                f'({created_count} new, {updated_count} updated)'
+            )
+            return redirect('bulk_grade_teacher_assignment')
+    else:
+        initial_data = {}
+        if active_year:
+            initial_data['academic_year'] = active_year
+        form = GradeLevelTeacherAssignmentForm(initial=initial_data)
+
+    # Show current grade-level assignments
+    assignments = ClassSubjectTeacher.objects.filter(
+        academic_year=active_year
+    ).select_related('class_assigned', 'subject', 'teacher__user').order_by(
+        'class_assigned__grade_level', 'class_assigned__name', 'subject__name'
+    ) if active_year else []
+
+    return render(request, 'settings/bulk_grade_teacher_assignment.html', {
+        'form': form,
+        'assignments': assignments,
+        'title': 'Bulk Grade-Level Teacher Assignment',
+    })
 
 
 # ─────────────────────────────────────────────
@@ -1421,7 +1548,6 @@ def create_assessment(request):
                 term=form.cleaned_data['term'],
                 class_assigned=form.cleaned_data['class_assigned'],
                 subject=form.cleaned_data['subject'],
-                weight_percentage=form.cleaned_data['weight_percentage'],
                 max_score=form.cleaned_data['max_score'],
                 assessment_date=form.cleaned_data['assessment_date'],
                 description=form.cleaned_data.get('description', ''),
@@ -1475,7 +1601,6 @@ def edit_assessment(request, assessment_id):
             assessment.term              = form.cleaned_data['term']
             assessment.class_assigned    = form.cleaned_data['class_assigned']
             assessment.subject           = form.cleaned_data['subject']
-            assessment.weight_percentage = form.cleaned_data['weight_percentage']
             assessment.max_score         = form.cleaned_data['max_score']
             assessment.assessment_date   = form.cleaned_data['assessment_date']
             assessment.description       = form.cleaned_data.get('description', '')
@@ -1521,7 +1646,6 @@ def view_gradebook(request, class_id, subject_id):
         class_assigned=class_obj, subject=subject, term_id=selected_term_id
     ).order_by('assessment_date')
 
-    total_weight = sum(a.weight_percentage for a in assessments)
     for a in assessments:
         a.grades_count = Grade.objects.filter(assessment=a).count()
 
@@ -1544,11 +1668,9 @@ def view_gradebook(request, class_id, subject_id):
                 }
 
     for student in students:
-        summary = TermGradeSummary.objects.filter(
-            student=student, term_id=selected_term_id, subject=subject
-        ).first()
-        student.term_average  = round(summary.average_score, 1) if summary else None
-        student.grade_letter  = summary.grade_letter if summary else None
+        mark = get_term_subject_mark(student, subject, current_term) if current_term else None
+        student.term_average = mark
+        student.grade_letter = get_grade_letter(mark) if mark is not None else None
 
     context = {
         'class': class_obj,
@@ -1557,7 +1679,6 @@ def view_gradebook(request, class_id, subject_id):
         'selected_term': str(selected_term_id),
         'current_term': current_term,
         'assessments': assessments,
-        'total_weight': total_weight,
         'students': students,
         'grades_data': grades_data,
     }
@@ -1641,55 +1762,15 @@ def calculate_term_averages(request, class_id, subject_id):
     term       = get_object_or_404(Term, pk=request.GET.get('term'))
     assessments = Assessment.objects.filter(class_assigned=class_obj, subject=subject, term=term)
 
-    total_weight = sum(a.weight_percentage for a in assessments)
-    if total_weight != 100:
-        messages.warning(request, f'Total assessment weight is {total_weight}%, not 100%. Results may be inaccurate.')
-
     for student in Student.objects.filter(
         enrollments__class_assigned=class_obj,
         enrollments__is_active=True,
         is_active=True
     ).distinct():
-        weighted_sum = total_weight_achieved = 0
-
-        for a in assessments:
-            grade = Grade.objects.filter(assessment=a, student=student).first()
-            if grade:
-                pct = (grade.score / a.max_score) * 100
-                weighted_sum          += pct * (a.weight_percentage / 100)
-                total_weight_achieved += a.weight_percentage
-
-        average = (weighted_sum / total_weight_achieved * 100) if total_weight_achieved else 0
-
-        TermGradeSummary.objects.update_or_create(
-            student=student, term=term, subject=subject,
-            defaults={
-                'average_score': round(average, 2),
-                'grade_letter':  get_grade_letter(average),
-            },
-        )
+        get_term_subject_mark(student, subject, term)
 
     messages.success(request, 'Term averages calculated successfully!')
     return redirect('view_gradebook', class_id=class_id, subject_id=subject_id)
-
-
-def get_grade_letter(percentage):
-    """Looks up GradingScale table; falls back to hardcoded defaults."""
-    try:
-        scale = GradingScale.objects.filter(
-            min_score__lte=percentage, max_score__gte=percentage
-        ).first()
-        if scale:
-            return scale.grade
-    except Exception:
-        pass
-
-    if percentage >= 90: return 'A+'
-    if percentage >= 80: return 'A'
-    if percentage >= 70: return 'B'
-    if percentage >= 60: return 'C'
-    if percentage >= 50: return 'D'
-    return 'F'
 
 
 @login_required
@@ -1703,30 +1784,38 @@ def student_grades_view(request):
     selected_term_id = request.GET.get('term', terms.first().id if terms.exists() else None)
     current_term_obj = get_object_or_404(Term, pk=selected_term_id) if selected_term_id else None
 
-    grade_summaries_raw = TermGradeSummary.objects.filter(
-        student=student, term_id=selected_term_id
-    ).select_related('subject')
-
     grade_summaries = []
-    for summary in grade_summaries_raw:
-        assessment_grades = []
-        for a in Assessment.objects.filter(
+    if current_term_obj and student.current_class:
+        subject_ids = Assessment.objects.filter(
             class_assigned=student.current_class,
-            subject=summary.subject,
             term_id=selected_term_id,
-        ).order_by('assessment_date'):
-            grade = Grade.objects.filter(assessment=a, student=student).first()
-            if grade:
-                grade.score      = round((grade.score / a.max_score) * 100, 1)
-                grade.assessment = a
-                assessment_grades.append(grade)
-        summary.assessments = assessment_grades
-        grade_summaries.append(summary)
+        ).values_list('subject_id', flat=True).distinct()
+        for subject_id in subject_ids:
+            from .models import Subject
+            subject = Subject.objects.get(pk=subject_id)
+            mark = get_term_subject_mark(student, subject, current_term_obj)
+            if mark is not None:
+                assessment_grades = []
+                for a in Assessment.objects.filter(
+                    class_assigned=student.current_class,
+                    subject=subject,
+                    term_id=selected_term_id,
+                ).order_by('assessment_date'):
+                    grade = Grade.objects.filter(assessment=a, student=student).first()
+                    if grade:
+                        grade.score      = round((grade.score / a.max_score) * 100, 1)
+                        grade.assessment = a
+                        assessment_grades.append(grade)
+                grade_summaries.append({
+                    'subject': subject,
+                    'average_score': mark,
+                    'grade_letter': get_grade_letter(mark),
+                    'assessments': assessment_grades,
+                })
 
     overall_average = 0
-    if grade_summaries_raw.exists():
-        avg = grade_summaries_raw.aggregate(Avg('average_score'))['average_score__avg']
-        overall_average = round(avg, 1) if avg else 0
+    if grade_summaries:
+        overall_average = round(sum(g['average_score'] for g in grade_summaries) / len(grade_summaries), 1)
 
     context = {
         'student': student,
@@ -1735,7 +1824,7 @@ def student_grades_view(request):
         'current_term_obj': current_term_obj,
         'grade_summaries': grade_summaries,
         'overall_average': overall_average,
-        'subjects_count': grade_summaries_raw.count(),
+        'subjects_count': len(grade_summaries),
     }
     return render(request, 'grades/student_grades.html', context)
 
@@ -1762,15 +1851,30 @@ def generate_report_cards(request):
 
 
 def generate_single_report_card_pdf(request, student, term):
-    grades = TermGradeSummary.objects.filter(
-        student=student, term=term
-    ).select_related('subject').order_by('subject__name')
+    grades = []
+    if student.current_class:
+        subject_ids = Assessment.objects.filter(
+            class_assigned=student.current_class,
+            term=term,
+        ).values_list('subject_id', flat=True).distinct()
+        for subject_id in subject_ids:
+            from .models import Subject
+            subject = Subject.objects.get(pk=subject_id)
+            mark = get_term_subject_mark(student, subject, term)
+            if mark is not None:
+                grades.append({
+                    'subject': subject,
+                    'average_score': mark,
+                    'grade_letter': get_grade_letter(mark),
+                    'teacher_comment': '',
+                })
+        grades.sort(key=lambda g: g['subject'].name)
 
-    if not grades.exists():
+    if not grades:
         messages.warning(request, 'No grades found for this student in the selected term.')
         return redirect('generate_report_cards')
 
-    overall_average = round(grades.aggregate(Avg('average_score'))['average_score__avg'], 1)
+    overall_average = round(sum(g['average_score'] for g in grades) / len(grades), 1)
     overall_grade   = get_grade_letter(overall_average)
 
     att = Attendance.objects.filter(
@@ -1823,7 +1927,7 @@ def generate_single_report_card_pdf(request, student, term):
 
     grade_data = [['Subject', 'Score (%)', 'Grade', 'Teacher Comment']]
     for g in grades:
-        grade_data.append([g.subject.name, f"{g.average_score}%", g.grade_letter, g.teacher_comment or '-'])
+        grade_data.append([g['subject'].name, f"{g['average_score']}%", g['grade_letter'], g['teacher_comment'] or '-'])
 
     grade_table = Table(grade_data, colWidths=[2*inch, 1*inch, 1*inch, 3.5*inch])
     grade_table.setStyle(TableStyle([
@@ -1842,7 +1946,7 @@ def generate_single_report_card_pdf(request, student, term):
 
     summary_table = Table([
         ['Overall Average:', f"{overall_average}%", 'Overall Grade:', overall_grade],
-        ['Total Subjects:', str(grades.count()), '', ''],
+        ['Total Subjects:', str(len(grades)), '', ''],
     ], colWidths=[1.5*inch]*4)
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0f0f0')),
@@ -1967,7 +2071,10 @@ def bulk_generate_reports(request):
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         for student in students:
-            if not TermGradeSummary.objects.filter(student=student, term=term).exists():
+            has_grades = Grade.objects.filter(
+                student=student, assessment__term=term
+            ).exists()
+            if not has_grades:
                 continue
             pdf_response = generate_single_report_card_pdf(request, student, term)
             filename = f"{student.student_id_number}_{student.user.last_name}_{student.user.first_name}.pdf"
@@ -1989,30 +2096,61 @@ def grade_reports(request):
     selected_class   = request.GET.get('class', '')
     selected_subject = request.GET.get('subject', '')
 
-    grade_summaries = TermGradeSummary.objects.filter(term_id=selected_term)
+    term = get_object_or_404(Term, pk=selected_term) if selected_term else None
+    students = Student.objects.filter(is_active=True)
     if selected_class:
-        # Filter through enrollments since current_class is a property
-        grade_summaries = grade_summaries.filter(
-            student__enrollments__class_assigned_id=selected_class,
-            student__enrollments__is_active=True
+        students = students.filter(
+            enrollments__class_assigned_id=selected_class,
+            enrollments__is_active=True
         ).distinct()
-    if selected_subject:
-        grade_summaries = grade_summaries.filter(subject_id=selected_subject)
 
-    if grade_summaries.exists():
-        agg = grade_summaries.aggregate(
-            avg=Avg('average_score'), hi=Max('average_score'), lo=Min('average_score')
-        )
+    grade_summaries = []
+    if term:
+        if selected_subject:
+            subject = get_object_or_404(Subject, pk=selected_subject)
+            for student in students:
+                mark = get_term_subject_mark(student, subject, term)
+                if mark is not None:
+                    grade_summaries.append({
+                        'student': student,
+                        'subject': subject,
+                        'average_score': mark,
+                        'grade_letter': get_grade_letter(mark),
+                    })
+        else:
+            for student in students:
+                if student.current_class:
+                    subject_ids = Assessment.objects.filter(
+                        term=term,
+                        class_assigned=student.current_class,
+                    ).values_list('subject_id', flat=True).distinct()
+                    marks = []
+                    for subject_id in subject_ids:
+                        from .models import Subject
+                        subject = Subject.objects.get(pk=subject_id)
+                        mark = get_term_subject_mark(student, subject, term)
+                        if mark is not None:
+                            marks.append(mark)
+                    if marks:
+                        avg = round(sum(marks) / len(marks), 1)
+                        grade_summaries.append({
+                            'student': student,
+                            'average_score': avg,
+                            'grade_letter': get_grade_letter(avg),
+                        })
+
+    if grade_summaries:
+        scores = [g['average_score'] for g in grade_summaries]
         stats = {
-            'total_students': grade_summaries.values('student').distinct().count(),
-            'average_score':  round(agg['avg'], 1),
-            'highest_score':  round(agg['hi'], 1),
-            'lowest_score':   round(agg['lo'], 1),
+            'total_students': len(set(g['student'].id for g in grade_summaries)),
+            'average_score':  round(sum(scores) / len(scores), 1),
+            'highest_score':  round(max(scores), 1),
+            'lowest_score':   round(min(scores), 1),
         }
     else:
         stats = {'total_students': 0, 'average_score': 0, 'highest_score': 0, 'lowest_score': 0}
 
-    grade_letters    = [g.grade_letter for g in grade_summaries]
+    grade_letters    = [g['grade_letter'] for g in grade_summaries]
     grade_counts     = Counter(grade_letters)
     total            = len(grade_letters) or 1
     grade_distribution = [
@@ -2024,9 +2162,7 @@ def grade_reports(request):
     top_students = []
     selected_subject_name = ''
     if selected_subject:
-        top_students = grade_summaries.select_related(
-            'student__user'
-        ).order_by('-average_score')[:10]
+        top_students = sorted(grade_summaries, key=lambda x: x['average_score'], reverse=True)[:10]
         selected_subject_name = get_object_or_404(Subject, pk=selected_subject).name
 
     context = {
@@ -2064,27 +2200,46 @@ def export_grade_report(request):
         cell.font = Font(bold=True)
         cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
 
-    qs = TermGradeSummary.objects.filter(term_id=term_id).select_related(
-        'student__user', 'subject'
-    ).prefetch_related('student__enrollments', 'student__enrollments__class_assigned')
+    students = Student.objects.filter(is_active=True)
     if class_id:
-        # Filter through enrollments since current_class is a property
-        qs = qs.filter(
-            student__enrollments__class_assigned_id=class_id,
-            student__enrollments__is_active=True
+        students = students.filter(
+            enrollments__class_assigned_id=class_id,
+            enrollments__is_active=True
         ).distinct()
-    if subject_id:
-        qs = qs.filter(subject_id=subject_id)
 
-    for s in qs:
-        ws.append([
-            s.student.student_id_number,
-            s.student.user.get_full_name(),
-            s.student.current_class.name,
-            s.subject.name,
-            s.average_score,
-            s.grade_letter,
-        ])
+    if subject_id:
+        subject = get_object_or_404(Subject, pk=subject_id)
+        for student in students:
+            mark = get_term_subject_mark(student, subject, term)
+            if mark is not None:
+                ws.append([
+                    student.student_id_number,
+                    student.user.get_full_name(),
+                    student.current_class.name if student.current_class else 'N/A',
+                    subject.name,
+                    mark,
+                    get_grade_letter(mark),
+                ])
+    else:
+        for student in students:
+            if student.current_class:
+                subject_ids = Assessment.objects.filter(
+                    term=term,
+                    class_assigned=student.current_class,
+                ).values_list('subject_id', flat=True).distinct()
+                for subject_id in subject_ids:
+                    from .models import Subject
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student, subject, term)
+                    if mark is not None:
+                        ws.append([
+                            student.student_id_number,
+                            student.user.get_full_name(),
+                            student.current_class.name if student.current_class else 'N/A',
+                            subject.name,
+                            mark,
+                            get_grade_letter(mark),
+                        ])
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -2150,10 +2305,19 @@ def view_profile(request):
             student = user.student_profile
             context['student'] = student
             current_term = Term.objects.filter(is_active=True).first()
-            if current_term:
-                grades = TermGradeSummary.objects.filter(student=student, term=current_term)
-                avg    = grades.aggregate(Avg('average_score'))['average_score__avg']
-                context['current_average'] = round(avg, 1) if avg else 0
+            if current_term and student.current_class:
+                subject_ids = Assessment.objects.filter(
+                    term=current_term,
+                    class_assigned=student.current_class,
+                ).values_list('subject_id', flat=True).distinct()
+                marks = []
+                for subject_id in subject_ids:
+                    from .models import Subject
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student, subject, current_term)
+                    if mark is not None:
+                        marks.append(mark)
+                context['current_average'] = round(sum(marks) / len(marks), 1) if marks else 0
             else:
                 context['current_average'] = 0
             total_att = Attendance.objects.filter(student=student).count()
@@ -2868,18 +3032,71 @@ def grading_scale_delete(request, pk):
 @login_required
 @admin_required
 def analytics_dashboard(request):
-    grade_distribution = TermGradeSummary.objects.values('grade_letter').annotate(
-        count=Count('id')
-    ).order_by('grade_letter')
+    current_term = Term.objects.filter(is_active=True).first()
 
-    subject_performance = Subject.objects.annotate(
-        avg_score=Avg('term_summaries__average_score')
-    ).order_by('-avg_score')[:5]
+    all_marks = []
+    if current_term:
+        for student in Student.objects.filter(is_active=True):
+            if student.current_class:
+                subject_ids = Assessment.objects.filter(
+                    term=current_term,
+                    class_assigned=student.current_class,
+                ).values_list('subject_id', flat=True).distinct()
+                for subject_id in subject_ids:
+                    from .models import Subject
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student, subject, current_term)
+                    if mark is not None:
+                        all_marks.append(mark)
 
-    # FIX: related name from Student → TermGradeSummary is 'term_summaries'
-    class_performance = SchoolClass.objects.annotate(
-        avg_score=Avg('current_students__term_summaries__average_score')
-    ).order_by('-avg_score')
+    grade_counts = Counter(get_grade_letter(m) for m in all_marks)
+    grade_distribution = [
+        {'grade_letter': g, 'count': grade_counts.get(g, 0)}
+        for g in ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F']
+    ]
+
+    subject_performance = []
+    if current_term:
+        for subject in Subject.objects.all():
+            marks = []
+            for student in Student.objects.filter(is_active=True):
+                if student.current_class:
+                    mark = get_term_subject_mark(student, subject, current_term)
+                    if mark is not None:
+                        marks.append(mark)
+            if marks:
+                subject_performance.append({
+                    'name': subject.name,
+                    'avg_score': round(sum(marks) / len(marks), 1),
+                })
+        subject_performance.sort(key=lambda x: x['avg_score'], reverse=True)
+    subject_performance = subject_performance[:5]
+
+    class_performance = []
+    if current_term:
+        for class_obj in SchoolClass.objects.all():
+            marks = []
+            for student in Student.objects.filter(
+                enrollments__class_assigned=class_obj,
+                enrollments__is_active=True,
+                is_active=True,
+            ).distinct():
+                subject_ids = Assessment.objects.filter(
+                    term=current_term,
+                    class_assigned=class_obj,
+                ).values_list('subject_id', flat=True).distinct()
+                for subject_id in subject_ids:
+                    from .models import Subject
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student, subject, current_term)
+                    if mark is not None:
+                        marks.append(mark)
+            if marks:
+                class_performance.append({
+                    'name': class_obj.name,
+                    'avg_score': round(sum(marks) / len(marks), 1),
+                })
+        class_performance.sort(key=lambda x: x['avg_score'], reverse=True)
 
     return render(request, 'reports/analytics_dashboard.html', {
         'grade_distribution': grade_distribution,
@@ -2893,20 +3110,26 @@ def analytics_dashboard(request):
 def teacher_performance_report(request):
     teachers         = Teacher.objects.filter(is_active=True).select_related('user')
     performance_data = []
+    current_term     = Term.objects.filter(is_active=True).first()
 
     for teacher in teachers:
         assignments = ClassSubjectTeacher.objects.filter(teacher=teacher)
-        related_summaries = TermGradeSummary.objects.filter(
-            subject__class_assignments__teacher=teacher,
-            student__enrollments__class_assigned__subject_assignments__teacher=teacher,
-            student__enrollments__is_active=True,
-        ).distinct()
+        marks = []
+        student_ids = set()
+        if current_term:
+            for assignment in assignments:
+                for student in Student.objects.filter(
+                    enrollments__class_assigned=assignment.class_assigned,
+                    enrollments__is_active=True,
+                    is_active=True,
+                ).distinct():
+                    mark = get_term_subject_mark(student, assignment.subject, current_term)
+                    if mark is not None:
+                        marks.append(mark)
+                        student_ids.add(student.id)
 
-        avg_score = student_count = 0
-        if related_summaries.exists():
-            stats         = related_summaries.aggregate(avg=Avg('average_score'), count=Count('student', distinct=True))
-            avg_score     = round(stats['avg'], 1)
-            student_count = stats['count']
+        avg_score = round(sum(marks) / len(marks), 1) if marks else 0
+        student_count = len(student_ids)
 
         performance_data.append({
             'teacher':       teacher,
@@ -2937,25 +3160,41 @@ def student_transcript_view(request, pk):
     for year in AcademicYear.objects.all().order_by('start_date'):
         year_data = {}
         for term in Term.objects.filter(academic_year=year).order_by('start_date'):
-            grades = TermGradeSummary.objects.filter(
-                student=student, term=term
-            ).select_related('subject')
-            if grades.exists():
-                avg = grades.aggregate(Avg('average_score'))['average_score__avg']
+            grades = []
+            if student.current_class:
+                subject_ids = Assessment.objects.filter(
+                    term=term,
+                    class_assigned=student.current_class,
+                ).values_list('subject_id', flat=True).distinct()
+                for subject_id in subject_ids:
+                    from .models import Subject
+                    subject = Subject.objects.get(pk=subject_id)
+                    mark = get_term_subject_mark(student, subject, term)
+                    if mark is not None:
+                        grades.append({
+                            'subject': subject,
+                            'average_score': mark,
+                            'grade_letter': get_grade_letter(mark),
+                            'teacher_comment': '',
+                        })
+                grades.sort(key=lambda g: g['subject'].name)
+            if grades:
+                avg = sum(g['average_score'] for g in grades) / len(grades)
                 year_data[term] = {'grades': grades, 'average': round(avg, 1)}
         if year_data:
             history[year] = year_data
 
-    overall = TermGradeSummary.objects.filter(student=student).aggregate(
-        Avg('average_score')
-    )['average_score__avg']
+    all_marks = []
+    for year, year_data in history.items():
+        for term, data in year_data.items():
+            all_marks.append(data['average'])
+    overall = sum(all_marks) / len(all_marks) if all_marks else 0
 
     return render(request, 'reports/student_transcript.html', {
         'student':          student,
         'history':          history,
-        'overall_average':  round(overall, 1) if overall else 0,
+        'overall_average':  round(overall, 1),
         'generated_date':   timezone.now(),
-        
     })
 
 
@@ -3124,23 +3363,33 @@ def class_subject_assign(request, class_id):
         # Initialize the form
         form = ClassSubjectTeacherForm(initial=initial_data)
         
-        # Filter subjects based on already assigned for the active year
+        # Only allow subjects configured for this grade level in GradeSubjectConfig
+        configured_subject_ids = GradeSubjectConfig.objects.filter(
+            grade_level=class_obj.grade_level
+        ).values_list('subject_id', flat=True)
+
         if active_year:
             assigned_subjects = ClassSubjectTeacher.objects.filter(
                 class_assigned=class_obj,
                 academic_year=active_year
             ).values_list('subject_id', flat=True)
-            
+
             # Set the queryset for the subject field
-            form.fields['subject'].queryset = Subject.objects.exclude(
+            form.fields['subject'].queryset = Subject.objects.filter(
+                id__in=configured_subject_ids
+            ).exclude(
                 id__in=assigned_subjects
             ).order_by('name')
-        
+        else:
+            form.fields['subject'].queryset = Subject.objects.filter(
+                id__in=configured_subject_ids
+            ).order_by('name')
+
         # Add helpful message if no subjects available
         if hasattr(form.fields['subject'], 'queryset') and form.fields['subject'].queryset.count() == 0:
             messages.info(
                 request,
-                f'All subjects have already been assigned to {class_obj.name} for this academic year.'
+                f'All grade-configured subjects have been assigned to {class_obj.name} for this academic year.'
             )
     
     context = {
@@ -3168,283 +3417,6 @@ def class_subject_remove(request, assignment_id):
         'object': assignment,
         'type': f'Subject {assignment.subject.name} from {assignment.class_assigned.name}',
     })
-
-
-# ─────────────────────────────────────────────
-# STUDENT SUBJECT ENROLLMENT (FOR FORM 4/5)
-# ─────────────────────────────────────────────
-
-@login_required
-def student_subjects_view(request, student_id=None):
-    """View enrolled subjects - read-only for students/parents"""
-    
-    if request.user.role == 'student':
-        student = request.user.student_profile
-    elif request.user.role == 'admin' and student_id:
-        student = get_object_or_404(Student, pk=student_id)
-    elif request.user.role == 'parent' and student_id:
-        # Parent can only view their children
-        student = get_object_or_404(Student, pk=student_id)
-        if not ParentStudent.objects.filter(parent=request.user.parent_profile, student=student).exists():
-            messages.error(request, 'Access denied')
-            return redirect('parent_dashboard')
-    else:
-        messages.error(request, 'Access denied')
-        return redirect('dashboard')
-    
-    current_class = student.current_class
-    if not current_class:
-        messages.error(request, 'Student not enrolled in any class')
-        return redirect('dashboard')
-    
-    grade_level = current_class.grade_level
-    academic_year = current_class.academic_year
-    
-    # Get all enrolled subjects
-    enrolled_subjects = StudentSubjectEnrollment.objects.filter(
-        student=student,
-        academic_year=academic_year
-    ).select_related('subject').order_by('subject__name')
-    
-    # Separate compulsory and elective
-    compulsory_subjects = GradeSubjectConfig.objects.filter(
-        grade_level=grade_level,
-        is_compulsory=True
-    ).select_related('subject')
-    
-    context = {
-        'student': student,
-        'current_class': current_class,
-        'grade_level': grade_level,
-        'compulsory_subjects': compulsory_subjects,
-        'enrolled_subjects': enrolled_subjects,
-        'is_readonly': True,
-    }
-    
-    return render(request, 'students/subject_enrollment.html', context)
-
-
-@login_required
-@admin_required
-def admin_subject_enrollment(request, student_id):
-    """Admin-only: Assign subjects to a student"""
-    
-    student = get_object_or_404(Student, pk=student_id)
-    current_class = student.current_class
-    
-    if not current_class:
-        messages.error(request, 'Student not enrolled in any class')
-        return redirect('student_list')
-
-    grade_level = current_class.grade_level
-    academic_year = current_class.academic_year
-    
-    # Get compulsory subjects for this grade
-    compulsory_subjects = GradeSubjectConfig.objects.filter(
-        grade_level=grade_level,
-        is_compulsory=True
-    ).select_related('subject')
-    
-    # Get elective subjects for this grade
-    elective_catalogue = GradeSubjectConfig.objects.filter(
-        grade_level=grade_level,
-        is_elective=True
-    ).select_related('subject')
-    
-    # Get currently enrolled subjects
-    enrolled_subjects = StudentSubjectEnrollment.objects.filter(
-        student=student,
-        academic_year=academic_year
-    ).values_list('subject_id', flat=True)
-    
-    required_electives = 0
-    already_enrolled = 0
-    
-    # Handle Form 4 (pick exactly 10 subjects from electives - NO compulsory auto-enrollment)
-    if grade_level == 'F4':
-        required_electives = 10
-        already_enrolled = StudentSubjectEnrollment.objects.filter(
-            student=student,
-            academic_year=academic_year
-        ).count()
-        
-        if request.method == 'POST':
-            selected_subjects = request.POST.getlist('elective_subjects')
-            
-            if len(selected_subjects) != required_electives:
-                messages.error(request, f'Form 4 students must have exactly {required_electives} subjects selected from electives')
-            else:
-                with transaction.atomic():
-                    # Remove ALL existing subject enrollments for this student
-                    StudentSubjectEnrollment.objects.filter(
-                        student=student,
-                        academic_year=academic_year
-                    ).delete()
-                    
-                    # Add new enrollments (all marked as elective choices for Form 4)
-                    for subject_id in selected_subjects:
-                        StudentSubjectEnrollment.objects.create(
-                            student=student,
-                            subject_id=subject_id,
-                            academic_year=academic_year,
-                            is_elective_choice=True
-                        )
-                    
-                    messages.success(request, f'Subjects updated for {student.user.get_full_name()}')
-                    return redirect('student_detail', pk=student.id)
-
-    # Handle Form 5 (pick exactly 3 subjects from electives - NO compulsory auto-enrollment)
-    elif grade_level == 'F5':
-        required_electives = 3
-        already_enrolled = StudentSubjectEnrollment.objects.filter(
-            student=student,
-            academic_year=academic_year
-        ).count()
-        
-        if request.method == 'POST':
-            selected_subjects = request.POST.getlist('elective_subjects')
-            
-            if len(selected_subjects) != required_electives:
-                messages.error(request, f'Form 5 students must have exactly {required_electives} subjects selected from electives')
-            else:
-                with transaction.atomic():
-                    # Remove ALL existing subject enrollments for this student
-                    StudentSubjectEnrollment.objects.filter(
-                        student=student,
-                        academic_year=academic_year
-                    ).delete()
-                    
-                    # Add new enrollments (all marked as elective choices for Form 5)
-                    for subject_id in selected_subjects:
-                        StudentSubjectEnrollment.objects.create(
-                            student=student,
-                            subject_id=subject_id,
-                            academic_year=academic_year,
-                            is_elective_choice=True,
-                            carried_from_previous_year=False
-                        )
-                    
-                    messages.success(request, f'Subjects updated for {student.user.get_full_name()}')
-                    return redirect('student_detail', pk=student.id)
-    
-    else:
-        # Other grades - just save the selection
-        if request.method == 'POST':
-            selected_subjects = request.POST.getlist('elective_subjects')
-            
-            with transaction.atomic():
-                # Remove existing elective enrollments
-                StudentSubjectEnrollment.objects.filter(
-                    student=student,
-                    academic_year=academic_year,
-                    is_elective_choice=True
-                ).delete()
-                
-                # Add new enrollments
-                for subject_id in selected_subjects:
-                    StudentSubjectEnrollment.objects.create(
-                        student=student,
-                        subject_id=subject_id,
-                        academic_year=academic_year,
-                        is_elective_choice=True
-                    )
-                
-                # Auto-enrol compulsory subjects
-                for config in compulsory_subjects:
-                    StudentSubjectEnrollment.objects.get_or_create(
-                        student=student,
-                        subject=config.subject,
-                        academic_year=academic_year,
-                        defaults={'is_elective_choice': False}
-                    )
-                
-                messages.success(request, f'Subjects updated for {student.user.get_full_name()}')
-                return redirect('student_detail', pk=student.id)
-
-    context = {
-        'student': student,
-        'current_class': current_class,
-        'grade_level': grade_level,
-        'compulsory_subjects': compulsory_subjects,
-        'elective_catalogue': elective_catalogue,
-        'enrolled_subjects': enrolled_subjects,
-        'required_electives': required_electives,
-        'already_enrolled': already_enrolled,
-        'is_readonly': False,
-    }
-    
-    return render(request, 'students/subject_enrollment.html', context)
-
-
-# ─────────────────────────────────────────────
-# BULK SUBJECT ENROLLMENT FOR FORM 4
-# ─────────────────────────────────────────────
-
-@login_required
-@admin_required
-def bulk_form4_subject_enrollment(request, class_id):
-    """Bulk subject enrollment for all Form 4 students in a class"""
-    class_obj = get_object_or_404(SchoolClass, pk=class_id)
-    
-    if class_obj.grade_level != 'F4':
-        messages.error(request, 'This is not a Form 4 class')
-        return redirect('class_detail', pk=class_id)
-    
-    students = Student.objects.filter(
-        enrollments__class_assigned=class_obj,
-        enrollments__is_active=True,
-        is_active=True
-    ).distinct()
-    academic_year = class_obj.academic_year
-    
-    # Get elective catalogue for Form 4
-    elective_catalogue = GradeSubjectConfig.objects.filter(
-        grade_level='F4',
-        is_elective=True
-    ).select_related('subject')
-    
-    if request.method == 'POST':
-        # Process enrollments for all students
-        for student in students:
-            selected_subjects = request.POST.getlist(f'subjects_{student.id}')
-            
-            if len(selected_subjects) == 10:  # Form 4 requires exactly 10
-                with transaction.atomic():
-                    # Remove ALL existing subject enrollments for this student
-                    StudentSubjectEnrollment.objects.filter(
-                        student=student,
-                        academic_year=academic_year
-                    ).delete()
-                    
-                    # Add new
-                    for subject_id in selected_subjects:
-                        StudentSubjectEnrollment.objects.create(
-                            student=student,
-                            subject_id=subject_id,
-                            academic_year=academic_year,
-                            is_elective_choice=True
-                        )
-        
-        messages.success(request, f'Subject enrollment completed for {class_obj.name}')
-        return redirect('class_detail', pk=class_id)
-    
-    # Get current enrollments (all subjects for Form 4 are elective choices)
-    current_enrollments = {}
-    for student in students:
-        enrolled = StudentSubjectEnrollment.objects.filter(
-            student=student,
-            academic_year=academic_year
-        ).values_list('subject_id', flat=True)
-        current_enrollments[student.id] = list(enrolled)
-        student.selected_subject_ids = current_enrollments[student.id]
-    
-    context = {
-        'class_obj': class_obj,
-        'students': students,
-        'elective_catalogue': elective_catalogue,
-        'current_enrollments': current_enrollments,
-    }
-    return render(request, 'students/bulk_subject_enrollment.html', context)
 
 
 # ─────────────────────────────────────────────
@@ -3492,32 +3464,39 @@ def parent_grades_view(request):
     selected_term_id = request.GET.get('term', terms.first().id if terms.exists() else None)
     current_term_obj = get_object_or_404(Term, pk=selected_term_id) if selected_term_id else None
     
-    # Get grade summaries for selected child
-    grade_summaries_raw = TermGradeSummary.objects.filter(
-        student=selected_child, term_id=selected_term_id
-    ).select_related('subject')
-    
     grade_summaries = []
-    for summary in grade_summaries_raw:
-        assessment_grades = []
-        for a in Assessment.objects.filter(
+    if current_term_obj and selected_child.current_class:
+        subject_ids = Assessment.objects.filter(
             class_assigned=selected_child.current_class,
-            subject=summary.subject,
             term_id=selected_term_id,
-        ).order_by('assessment_date'):
-            grade = Grade.objects.filter(assessment=a, student=selected_child).first()
-            if grade:
-                grade.score = round((grade.score / a.max_score) * 100, 1)
-                grade.assessment = a
-                assessment_grades.append(grade)
-        summary.assessments = assessment_grades
-        grade_summaries.append(summary)
-    
+        ).values_list('subject_id', flat=True).distinct()
+        for subject_id in subject_ids:
+            from .models import Subject
+            subject = Subject.objects.get(pk=subject_id)
+            mark = get_term_subject_mark(selected_child, subject, current_term_obj)
+            if mark is not None:
+                assessment_grades = []
+                for a in Assessment.objects.filter(
+                    class_assigned=selected_child.current_class,
+                    subject=subject,
+                    term_id=selected_term_id,
+                ).order_by('assessment_date'):
+                    grade = Grade.objects.filter(assessment=a, student=selected_child).first()
+                    if grade:
+                        grade.score = round((grade.score / a.max_score) * 100, 1)
+                        grade.assessment = a
+                        assessment_grades.append(grade)
+                grade_summaries.append({
+                    'subject': subject,
+                    'average_score': mark,
+                    'grade_letter': get_grade_letter(mark),
+                    'assessments': assessment_grades,
+                })
+
     overall_average = 0
-    if grade_summaries_raw.exists():
-        avg = grade_summaries_raw.aggregate(Avg('average_score'))['average_score__avg']
-        overall_average = round(avg, 1) if avg else 0
-    
+    if grade_summaries:
+        overall_average = round(sum(g['average_score'] for g in grade_summaries) / len(grade_summaries), 1)
+
     context = {
         'parent': parent,
         'children': parent_student_links,
@@ -3527,6 +3506,6 @@ def parent_grades_view(request):
         'current_term_obj': current_term_obj,
         'grade_summaries': grade_summaries,
         'overall_average': overall_average,
-        'subjects_count': grade_summaries_raw.count(),
+        'subjects_count': len(grade_summaries),
     }
     return render(request, 'grades/parent_grades.html', context)

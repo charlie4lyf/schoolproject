@@ -327,6 +327,23 @@ class TeacherAssignmentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['teacher'].queryset = Teacher.objects.filter(is_active=True)
 
+    def clean_subject(self):
+        """Validate that the subject is configured for the selected class's grade level."""
+        class_assigned = self.cleaned_data.get('class_assigned')
+        subject = self.cleaned_data.get('subject')
+        if class_assigned and subject:
+            from smsapp.models import GradeSubjectConfig
+            is_configured = GradeSubjectConfig.objects.filter(
+                grade_level=class_assigned.grade_level,
+                subject=subject
+            ).exists()
+            if not is_configured:
+                raise forms.ValidationError(
+                    f'"{subject}" is not configured for {class_assigned.grade_level}. '
+                    f'Add it in Grade-Subject Config first.'
+                )
+        return subject
+
 
 # ─────────────────────────────────────────────
 # PARENT
@@ -390,7 +407,6 @@ class AssessmentForm(forms.Form):
     term              = forms.ModelChoiceField(queryset=Term.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
     class_assigned    = forms.ModelChoiceField(queryset=SchoolClass.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
     subject           = forms.ModelChoiceField(queryset=Subject.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
-    weight_percentage = forms.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100, widget=forms.NumberInput(attrs={'class': 'form-control'}))
     max_score         = forms.DecimalField(max_digits=5, decimal_places=2, min_value=1, initial=100, widget=forms.NumberInput(attrs={'class': 'form-control'}))
     assessment_date   = forms.DateField(widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}))
     description       = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}))
@@ -404,7 +420,6 @@ class AssessmentForm(forms.Form):
                 'term':              self.instance.term,
                 'class_assigned':    self.instance.class_assigned,
                 'subject':           self.instance.subject,
-                'weight_percentage': self.instance.weight_percentage,
                 'max_score':         self.instance.max_score,
                 'assessment_date':   self.instance.assessment_date,
                 'description':       self.instance.description,
@@ -508,3 +523,47 @@ class ClassSubjectTeacherForm(forms.ModelForm):
         self.fields['academic_year'].queryset = AcademicYear.objects.all().order_by('-start_date')
         # Add empty option for teacher (optional)
         self.fields['teacher'].empty_label = "Select Teacher (Optional)"
+
+
+class GradeLevelTeacherAssignmentForm(forms.Form):
+    """Bulk assign a teacher to ALL classes of a specific grade + subject."""
+    grade_level = forms.ChoiceField(
+        choices=GRADE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Grade Level'
+    )
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all().order_by('name'),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Subject'
+    )
+    teacher = forms.ModelChoiceField(
+        queryset=Teacher.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Teacher',
+        empty_label='Select Teacher'
+    )
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all().order_by('-start_date'),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Academic Year'
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        grade_level = cleaned_data.get('grade_level')
+        subject = cleaned_data.get('subject')
+
+        if grade_level and subject:
+            # Validate that the subject is configured for this grade
+            is_configured = GradeSubjectConfig.objects.filter(
+                grade_level=grade_level,
+                subject=subject
+            ).exists()
+            if not is_configured:
+                raise forms.ValidationError(
+                    f'"{subject}" is not configured for {grade_level}. '
+                    f'Add it in Grade-Subject Config first.'
+                )
+
+        return cleaned_data
