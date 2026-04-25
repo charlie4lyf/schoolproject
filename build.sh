@@ -12,17 +12,25 @@ import os
 
 User = get_user_model()
 
-# Create admin user if it doesn't exist
-admin, created = User.objects.get_or_create(
-    username='admin',
-    defaults={
-        'email': 'admin@example.com',
-        'is_staff': True,
-        'is_superuser': True
-    }
-)
+# Check if admin user exists
+try:
+    admin = User.objects.get(username='admin')
+    created = False
+    print('Admin user already exists')
+except User.DoesNotExist:
+    # Create admin user with all required fields
+    admin = User.objects.create_superuser(
+        username='admin',
+        email='admin@example.com',
+        password=os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123'),
+        first_name='Admin',
+        last_name='User',
+        role='admin'
+    )
+    created = True
+    print('Admin user created')
 
-# Set password whether user existed or was just created
+# Update password (always ensure it's set correctly)
 admin.set_password(os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123'))
 admin.save()
 
@@ -33,7 +41,7 @@ else:
 
 # Generate dummy data if needed
 if Student.objects.count() == 0:
-    # Add your dummy data generation code here
+    # Add your dummy data generation code here if any
     print('Dummy data generated')
 else:
     print('Data already exists, skipping')
