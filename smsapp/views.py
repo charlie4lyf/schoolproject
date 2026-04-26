@@ -3205,16 +3205,16 @@ def student_transcript_view(request, pk):
 @login_required
 @admin_required
 def grade_subject_config_list(request):
-    """List all grade level subject configurations"""
+    """List all grade level subject configurations - shows all grades even if empty."""
     configs = GradeSubjectConfig.objects.select_related('subject').order_by('grade_level', 'subject__name')
-    
-    # Group by grade level
-    grouped_configs = {}
+
+    # Initialize ALL grade levels (even if no configs exist)
+    grouped_configs = {grade[0]: [] for grade in GRADE_CHOICES}
+
+    # Populate with existing configs
     for config in configs:
-        if config.grade_level not in grouped_configs:
-            grouped_configs[config.grade_level] = []
         grouped_configs[config.grade_level].append(config)
-    
+
     context = {
         'grouped_configs': grouped_configs,
         'grade_choices': GRADE_CHOICES,
