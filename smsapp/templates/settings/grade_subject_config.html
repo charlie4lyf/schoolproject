@@ -18,11 +18,21 @@
                     {% for grade_level, configs in grouped_configs.items %}
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="mb-0">{{ configs.0.get_grade_level_display }}</h6>
+                            <h6 class="mb-0">
+                                {% if configs %}
+                                    {{ configs.0.get_grade_level_display }}
+                                {% else %}
+                                    {% for choice in grade_choices %}
+                                        {% if choice.0 == grade_level %}{{ choice.1 }}{% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                <span class="badge bg-secondary ms-2">{{ configs|length }} subject{{ configs|length|pluralize }}</span>
+                            </h6>
                             <a href="{% url 'grade_subject_config_add' grade_level %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-plus"></i> Add Subject
                             </a>
                         </div>
+                        {% if configs %}
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
@@ -77,14 +87,15 @@
                                             </div>
                                         </td>
                                     </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">No subjects configured for this grade level</td>
-                                    </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
+                        {% else %}
+                        <div class="alert alert-light border text-center">
+                            <i class="bi bi-inbox me-2"></i>No subjects configured yet. Click "Add Subject" to get started.
+                        </div>
+                        {% endif %}
                         <hr class="my-4">
                     </div>
                     {% endfor %}
