@@ -1,7 +1,5 @@
 # smsapp/templatetags/math_filters.py
 from django import template
-from django.template.defaultfilters import stringfilter
-import decimal
 
 register = template.Library()
 
@@ -72,4 +70,4 @@ def floatformat(value, arg=-1):
         else:
             return ('%.*f' % (int(arg), value)).rstrip('0').rstrip('.') if '.' in ('%.*f' % (int(arg), value)) else ('%.*f' % (int(arg), value))
     except (ValueError, TypeError):
-        return value
+        return value

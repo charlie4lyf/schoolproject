@@ -1,7 +1,7 @@
 import random
 import uuid
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -32,7 +32,7 @@ class User(AbstractUser):
 
     def save(self, *args, **kwargs):
         if not self.pk and self.role != 'admin' and not self.username:
-            self.username = self._generate_username(self.role)
+            self.username = User.generate_username(self.role)
         super().save(*args, **kwargs)
 
     @staticmethod  # FIX: was missing @staticmethod — calling self.generate_username() passed `self` as `role`
@@ -589,4 +589,4 @@ class ActivityLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} — {self.action} — {self.model_name} — {self.timestamp}"
+        return f"{self.user} — {self.action} — {self.model_name} — {self.timestamp}"

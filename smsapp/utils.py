@@ -29,6 +29,6 @@ def get_term_subject_mark(student, subject, term):
     total_scored = sum(g.score for g in grades)
     total_possible = sum(g.assessment.max_score for g in grades)
 
-    if not grades.exists() or total_possible == 0:
+    if total_possible == 0:
         return None
     return round((float(total_scored) / float(total_possible)) * 100, 1)

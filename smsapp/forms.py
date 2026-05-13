@@ -3,23 +3,10 @@ from django.contrib.auth.forms import PasswordChangeForm
 
 from .models import (
     AcademicYear, Assignment, AssignmentSubmission,
-    SchoolClass, ClassSubjectTeacher, GradeSubjectConfig, GradingScale,
+    SchoolClass, ClassSubjectTeacher, GRADE_CHOICES, GradeSubjectConfig, GradingScale,
     Parent, ParentStudent, Student, Subject, Teacher, Term, User,
     YearEndPromotion,
 )
-
-
-# ─────────────────────────────────────────────
-# SHARED GRADE CHOICES (mirrors models.py)
-# ─────────────────────────────────────────────
-
-GRADE_CHOICES = [
-    ('G1', 'Grade 1'), ('G2', 'Grade 2'), ('G3', 'Grade 3'),
-    ('G4', 'Grade 4'), ('G5', 'Grade 5'), ('G6', 'Grade 6'),
-    ('G7', 'Grade 7'),
-    ('F1', 'Form 1'), ('F2', 'Form 2'), ('F3', 'Form 3'),
-    ('F4', 'Form 4'), ('F5', 'Form 5'), ('F6', 'Form 6'),
-]
 
 
 # ─────────────────────────────────────────────
@@ -401,8 +388,8 @@ class ParentStudentLinkForm(forms.ModelForm):
 # ASSESSMENTS & GRADES
 # ─────────────────────────────────────────────
 
-class AssessmentForm(forms.Form):
-    """Composite form for creating/updating an Assessment."""
+class AssessmentCreationForm(forms.Form):
+    """Composite form for creating/updating an Assessment (grade-management)."""
     name              = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
     term              = forms.ModelChoiceField(queryset=Term.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
     class_assigned    = forms.ModelChoiceField(queryset=SchoolClass.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
@@ -566,4 +553,4 @@ class GradeLevelTeacherAssignmentForm(forms.Form):
                     f'Add it in Grade-Subject Config first.'
                 )
 
-        return cleaned_data
+        return cleaned_data
