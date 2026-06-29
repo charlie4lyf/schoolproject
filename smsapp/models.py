@@ -1,6 +1,7 @@
 import random
 import uuid
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -66,6 +67,11 @@ class AcademicYear(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            AcademicYear.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+
 
 class Term(models.Model):
     academic_year             = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='terms')
@@ -86,6 +92,11 @@ class Term(models.Model):
     @property
     def has_ended(self):
         return timezone.now().date() > self.end_date
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            Term.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
 
 
 # ─────────────────────────────────────────────
@@ -237,7 +248,7 @@ class Teacher(models.Model):
     @property
     def assigned_class(self):
         """Returns the class where this teacher is the class teacher."""
-        return SchoolClass.objects.filter(class_teacher=self).first()
+        return SchoolClass.objects.filter(class_teacher=self, academic_year__is_active=True).first()
 
 
 # ─────────────────────────────────────────────
@@ -287,7 +298,7 @@ class Student(models.Model):
     @property
     def current_enrollment(self):
         """Returns the active StudentEnrollment for the current academic year."""
-        return self.enrollments.filter(is_active=True).select_related('class_assigned').first()
+        return self.enrollments.filter(is_active=True, academic_year__is_active=True).select_related('class_assigned').first()
 
     @property
     def current_class(self):
@@ -327,6 +338,23 @@ class YearEndPromotion(models.Model):
 
     def __str__(self):
         return f"{self.student} — {self.academic_year} — {self.status}"
+
+    def apply_promotion(self, next_academic_year):
+        """Applies the promotion, moving the student to the next class."""
+        if self.status in ['returning', 'repeating'] and self.next_class:
+            # Deactivate old enrollment
+            StudentEnrollment.objects.filter(
+                student=self.student,
+                is_active=True
+            ).update(is_active=False)
+            
+            # Create new enrollment
+            StudentEnrollment.objects.create(
+                student=self.student,
+                class_assigned=self.next_class,
+                academic_year=next_academic_year,
+                is_active=True
+            )
 
 
 # ─────────────────────────────────────────────
@@ -388,6 +416,19 @@ class ClassSubjectTeacher(models.Model):
     def __str__(self):
         teacher_name = self.teacher.user.get_full_name() if self.teacher else 'Unassigned'
         return f"{teacher_name} — {self.subject} — {self.class_assigned}"
+
+    def clean(self):
+        if self.class_assigned and self.subject:
+            is_configured = GradeSubjectConfig.objects.filter(
+                grade_level=self.class_assigned.grade_level,
+                subject=self.subject
+            ).exists()
+            if not is_configured:
+                raise ValidationError(f"The subject '{self.subject.name}' is not configured for grade {self.class_assigned.get_grade_level_display()}.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
 
 # ─────────────────────────────────────────────
@@ -466,6 +507,20 @@ class Grade(models.Model):
 
     def __str__(self):
         return f"{self.student} — {self.assessment.name} — {self.score}"
+
+    def clean(self):
+        if self.assessment and self.student:
+            is_enrolled = StudentEnrollment.objects.filter(
+                student=self.student,
+                class_assigned=self.assessment.class_assigned,
+                is_active=True
+            ).exists()
+            if not is_enrolled:
+                raise ValidationError(f"Student {self.student} is not actively enrolled in {self.assessment.class_assigned}.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
 
 class ReportCard(models.Model):

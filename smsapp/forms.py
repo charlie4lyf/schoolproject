@@ -149,6 +149,11 @@ class GradeSubjectConfigForm(forms.ModelForm):
             'is_elective':   forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['subject'].disabled = True
+
 
 # ─────────────────────────────────────────────
 # CLASS

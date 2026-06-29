@@ -9,8 +9,8 @@ from django.db import models
 from django.db.models import Q
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from ..models import Student, User, SchoolClass, StudentEnrollment, Term, Assessment, ParentStudent
-from ..forms import StudentForm
+from ..models import Student, User, SchoolClass, StudentEnrollment, Term, Assessment, ParentStudent, YearEndPromotion, AcademicYear
+from ..forms import StudentForm, YearEndPromotionForm
 from ..utils import get_term_subject_mark, get_grade_letter
 from ..decorators import admin_required
 
@@ -202,6 +202,43 @@ def student_update(request, pk):
         'student': student,
     }
     return render(request, 'students/student_form.html', context)
+
+
+@login_required
+@admin_required
+def promote_student(request, pk):
+    student = get_object_or_404(Student, pk=pk)
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    
+    if request.method == 'POST':
+        form = YearEndPromotionForm(request.POST)
+        if form.is_valid():
+            promotion = form.save(commit=False)
+            promotion.student = student
+            promotion.academic_year = active_year
+            promotion.current_class = student.current_class
+            
+            # User might not be a teacher (since it's an admin view), so handle safely
+            if hasattr(request.user, 'teacher_profile'):
+                promotion.recorded_by = request.user.teacher_profile
+                
+            promotion.save()
+            
+            if active_year:
+                promotion.apply_promotion(next_academic_year=active_year)
+                
+            messages.success(request, f'Promotion recorded for {student.user.get_full_name()}')
+            return redirect('student_detail', pk=student.id)
+    else:
+        form = YearEndPromotionForm()
+        
+    context = {
+        'form': form,
+        'student': student,
+        'title': f'Promote {student.user.get_full_name()}',
+        'active_year': active_year,
+    }
+    return render(request, 'students/promote_student.html', context)
 
 
 @login_required

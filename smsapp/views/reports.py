@@ -37,10 +37,13 @@ def generate_report_cards(request):
 
 
 def generate_single_report_card_pdf(request, student, term):
+    enrollment = student.enrollments.filter(academic_year=term.academic_year).first()
+    target_class = enrollment.class_assigned if enrollment else None
+
     grades = []
-    if student.current_class:
+    if target_class:
         subject_ids = Assessment.objects.filter(
-            class_assigned=student.current_class,
+            class_assigned=target_class,
             term=term,
         ).values_list('subject_id', flat=True).distinct()
         for subject_id in subject_ids:
@@ -89,7 +92,7 @@ def generate_single_report_card_pdf(request, student, term):
     elements.append(Paragraph(f"{term.name} — {term.academic_year.name}", styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
 
-    student_class_name = student.current_class.name if student.current_class else 'N/A'
+    student_class_name = target_class.name if target_class else 'N/A'
 
     student_table = Table([
         ['Student Name:', student.user.get_full_name(), 'Student ID:', student.student_id_number],
@@ -174,8 +177,8 @@ def generate_single_report_card_pdf(request, student, term):
 
     elements.append(Spacer(1, 0.4*inch))
     ct_name = (
-        student.current_class.class_teacher.user.get_full_name()
-        if student.current_class and student.current_class.class_teacher
+        target_class.class_teacher.user.get_full_name()
+        if target_class and target_class.class_teacher
         else "Not Assigned"
     )
     sig_table = Table([

@@ -36,6 +36,7 @@ urlpatterns = [
     path('students/create/', students.student_create, name='student_create'),
     path('students/<int:pk>/', students.student_detail, name='student_detail'),
     path('students/<int:pk>/edit/', students.student_update, name='student_update'),
+    path('students/<int:pk>/promote/', students.promote_student, name='promote_student'),
     path('students/import/', students.student_import, name='student_import'),
     path('students/import/confirm/', students.student_import_confirm, name='student_import_confirm'),
     path('students/import/template/', students.student_csv_template, name='student_csv_template'),

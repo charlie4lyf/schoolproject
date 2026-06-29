@@ -174,6 +174,18 @@ def grade_subject_config_add(request, grade_level):
             config = form.save(commit=False)
             config.grade_level = grade_level
             config.save()
+            
+            active_year = AcademicYear.objects.filter(is_active=True).first()
+            if active_year:
+                classes = SchoolClass.objects.filter(grade_level=grade_level, academic_year=active_year)
+                for cls in classes:
+                    ClassSubjectTeacher.objects.get_or_create(
+                        class_assigned=cls,
+                        subject=config.subject,
+                        academic_year=active_year,
+                        defaults={'teacher': None}
+                    )
+                    
             messages.success(request, f'Subject added to {dict(GRADE_CHOICES).get(grade_level)}')
             return redirect('grade_subject_config_list')
     else:
@@ -216,6 +228,14 @@ def grade_subject_config_edit(request, pk):
 def grade_subject_config_delete(request, pk):
     config = get_object_or_404(GradeSubjectConfig, pk=pk)
     if request.method == 'POST':
+        active_year = AcademicYear.objects.filter(is_active=True).first()
+        if active_year:
+            ClassSubjectTeacher.objects.filter(
+                class_assigned__grade_level=config.grade_level,
+                subject=config.subject,
+                academic_year=active_year
+            ).delete()
+            
         config.delete()
         messages.success(request, 'Configuration removed successfully')
         return redirect('grade_subject_config_list')

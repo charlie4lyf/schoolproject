@@ -59,10 +59,12 @@ def create_assignment(request):
     else:
         form = AssignmentForm()
         form.fields['class_assigned'].queryset = SchoolClass.objects.filter(
-            subject_assignments__teacher=teacher
+            subject_assignments__teacher=teacher,
+            academic_year__is_active=True
         ).distinct()
         form.fields['subject'].queryset = Subject.objects.filter(
-            class_assignments__teacher=teacher
+            class_assignments__teacher=teacher,
+            class_assignments__academic_year__is_active=True
         ).distinct()
 
     return render(request, 'assignments/assignment_form.html', {'form': form, 'title': 'Create Assignment'})
