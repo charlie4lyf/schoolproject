@@ -136,10 +136,11 @@ def student_transcript_view(request, pk):
         year_data = {}
         for term in Term.objects.filter(academic_year=year).order_by('start_date'):
             grades = []
-            if student.current_class:
+            target_class = student.get_class_for_term(term)
+            if target_class:
                 subject_ids = Assessment.objects.filter(
                     term=term,
-                    class_assigned=student.current_class,
+                    class_assigned=target_class,
                 ).values_list('subject_id', flat=True).distinct()
                 for subject_id in subject_ids:
                     subject = Subject.objects.get(pk=subject_id)

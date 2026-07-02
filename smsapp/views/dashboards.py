@@ -66,7 +66,8 @@ def teacher_dashboard(request):
     # I'll use the correct logic from original views.py
     from ..models import ClassSubjectTeacher
     teaching_assignments = ClassSubjectTeacher.objects.filter(
-        teacher=teacher
+        teacher=teacher,
+        academic_year__is_active=True
     ).select_related('class_assigned', 'subject', 'academic_year')
 
     today = timezone.now().date()

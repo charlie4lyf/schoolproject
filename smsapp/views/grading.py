@@ -264,9 +264,10 @@ def student_grades_view(request):
     current_term_obj = get_object_or_404(Term, pk=selected_term_id) if selected_term_id else None
 
     grade_summaries = []
-    if current_term_obj and student.current_class:
+    target_class = student.get_class_for_term(current_term_obj) if current_term_obj else None
+    if current_term_obj and target_class:
         subject_ids = Assessment.objects.filter(
-            class_assigned=student.current_class,
+            class_assigned=target_class,
             term_id=selected_term_id,
         ).values_list('subject_id', flat=True).distinct()
         for subject_id in subject_ids:
@@ -275,7 +276,7 @@ def student_grades_view(request):
             if mark is not None:
                 assessment_grades = []
                 for a in Assessment.objects.filter(
-                    class_assigned=student.current_class,
+                    class_assigned=target_class,
                     subject=subject,
                     term_id=selected_term_id,
                 ).order_by('assessment_date'):
@@ -343,9 +344,10 @@ def parent_grades_view(request):
     current_term_obj = get_object_or_404(Term, pk=selected_term_id) if selected_term_id else None
     
     grade_summaries = []
-    if current_term_obj and selected_child.current_class:
+    target_class = selected_child.get_class_for_term(current_term_obj) if current_term_obj else None
+    if current_term_obj and target_class:
         subject_ids = Assessment.objects.filter(
-            class_assigned=selected_child.current_class,
+            class_assigned=target_class,
             term_id=selected_term_id,
         ).values_list('subject_id', flat=True).distinct()
         for subject_id in subject_ids:
@@ -354,7 +356,7 @@ def parent_grades_view(request):
             if mark is not None:
                 assessment_grades = []
                 for a in Assessment.objects.filter(
-                    class_assigned=selected_child.current_class,
+                    class_assigned=target_class,
                     subject=subject,
                     term_id=selected_term_id,
                 ).order_by('assessment_date'):

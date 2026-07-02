@@ -306,6 +306,11 @@ class Student(models.Model):
         enrollment = self.current_enrollment
         return enrollment.class_assigned if enrollment else None
 
+    def get_class_for_term(self, term):
+        """Returns the SchoolClass the student was enrolled in during the term's academic year."""
+        enrollment = self.enrollments.filter(academic_year=term.academic_year).first()
+        return enrollment.class_assigned if enrollment else None
+
 
 # ─────────────────────────────────────────────
 # YEAR-END PROMOTION

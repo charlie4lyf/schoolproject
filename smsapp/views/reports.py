@@ -397,22 +397,24 @@ def export_grade_report(request):
     if subject_id:
         subject = get_object_or_404(Subject, pk=subject_id)
         for student in students:
+            target_class = student.get_class_for_term(term)
             mark = get_term_subject_mark(student, subject, term)
             if mark is not None:
                 ws.append([
                     student.student_id_number,
                     student.user.get_full_name(),
-                    student.current_class.name if student.current_class else 'N/A',
+                    target_class.name if target_class else 'N/A',
                     subject.name,
                     mark,
                     get_grade_letter(mark),
                 ])
     else:
         for student in students:
-            if student.current_class:
+            target_class = student.get_class_for_term(term)
+            if target_class:
                 subject_ids = Assessment.objects.filter(
                     term=term,
-                    class_assigned=student.current_class,
+                    class_assigned=target_class,
                 ).values_list('subject_id', flat=True).distinct()
                 for subject_id in subject_ids:
                     subject = Subject.objects.get(pk=subject_id)
@@ -421,7 +423,7 @@ def export_grade_report(request):
                         ws.append([
                             student.student_id_number,
                             student.user.get_full_name(),
-                            student.current_class.name if student.current_class else 'N/A',
+                            target_class.name if target_class else 'N/A',
                             subject.name,
                             mark,
                             get_grade_letter(mark),
