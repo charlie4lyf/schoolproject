@@ -33,7 +33,7 @@
                                     <td>{{ sub.get_status_display }}</td>
                                     <td>{{ sub.score|default:"-" }}</td>
                                     <td>
-                                        <a href="{{ sub.submission_file.url }}" target="_blank" class="btn btn-sm btn-info" title="Download"><i class="fas fa-download"></i></a>
+                                        
                                         <a href="{% url 'grade_submission' sub.pk %}" class="btn btn-sm btn-success" title="Grade"><i class="fas fa-check"></i></a>
                                     </td>
                                 </tr>

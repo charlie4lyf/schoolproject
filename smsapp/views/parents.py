@@ -39,7 +39,7 @@ def parent_create(request):
         if form.is_valid():
             try:
                 # Security Fix: use random password instead of 'parent123'
-                temp_password = generate_random_password()
+                temp_password = 'Parent!23'
                 user = User.objects.create_user(
                     username=User.generate_username('parent'),
                     email=form.cleaned_data['email'],

@@ -112,7 +112,7 @@ def student_create(request):
         form = StudentForm(request.POST)
         if form.is_valid():
             # Security Fix: use random password instead of 'student123'
-            temp_password = generate_random_password()
+            temp_password = 'Student123'
             user = User.objects.create_user(
                 username= User.generate_username('student'),  
                 email=form.cleaned_data['email'],

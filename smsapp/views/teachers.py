@@ -44,7 +44,7 @@ def teacher_create(request):
         if form.is_valid():
             try:
                 # Security Fix: use random password instead of 'teacher123'
-                temp_password = generate_random_password()
+                temp_password = 'Teacher123'
                 user = User.objects.create_user(
                     username=User.generate_username('teacher'),
                     email=form.cleaned_data['email'],

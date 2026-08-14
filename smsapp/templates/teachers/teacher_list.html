@@ -27,6 +27,7 @@
                 <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
+                            <th>UserName</th>
                             <th>Name</th>
                             <th>Emp ID</th>
                             <th>Email</th>
@@ -38,6 +39,7 @@
                     <tbody>
                         {% for teacher in teachers %}
                         <tr>
+                            <td>{{ teacher.user.username }}</td>
 
                             <td><a href="{% url 'teacher_detail' teacher.pk %}">{{ teacher.user.get_full_name }}</a></td>
                             <td>{{ teacher.employee_id }}</td>
